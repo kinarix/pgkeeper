@@ -123,3 +123,9 @@ make verify lint test             # before every commit
 make accept-pN                    # acceptance suite for phase N
 ```
 Each phase is done only when `make accept-pN` passes on kind **and** k3d. Contributor and agent conventions are in [`CLAUDE.md`](CLAUDE.md).
+
+## Contributing
+Contributions use the [Developer Certificate of Origin](https://developercertificate.org/): sign off every commit with `git commit -s`. See [CONTRIBUTING.md](CONTRIBUTING.md).
+
+## License
+Copyright 2026 The pgkeeper Authors. Licensed under the [Apache License, Version 2.0](LICENSE); see also [NOTICE](NOTICE).

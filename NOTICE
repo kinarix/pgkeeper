@@ -1,0 +1,8 @@
+pgkeeper
+Copyright 2026 The pgkeeper Authors
+
+This product is licensed under the Apache License, Version 2.0 (see LICENSE).
+
+The pgkeeper-tools container image additionally redistributes third-party
+binaries under their own licenses; their license texts are shipped in the
+image under /LICENSES/.

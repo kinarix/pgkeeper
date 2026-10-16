@@ -25,7 +25,7 @@ Kubernetes operator for highly available PostgreSQL on **unmodified official `po
 ## Working rules
 1. **One phase at a time.** Only implement what the current phase lists. Don't pre-build later phases "while you're there". Leave `TODO(Pn): ...` with the phase number for deliberate deferrals.
 2. **Phase is done only when `make accept-pN` passes on kind and k3d** plus the Definition of Done in 08 §6. Then tick the phase in `09-phases.md`.
-3. **Small commits**, each building and passing `make verify lint test-unit`.
+3. **Small commits**, each building and passing `make verify lint test-unit`, each signed off for the DCO (`git commit -s`; see CONTRIBUTING.md).
 4. **Test first for safety logic.** For anything in `internal/ha`, the lease loop, fencing or promotion: write/extend the model test (rapid) and unit tests before the implementation.
 5. **Never weaken an invariant (03 §1) to make a test pass.** If an invariant seems wrong, stop and raise it.
 6. **Verify external facts** (tool versions, WAL-G flags, Postgres GUC names/values per major) against upstream docs at the start of the phase that needs them; pin what you verified in the Makefile/go.mod and note it in the PR.
@@ -89,6 +89,7 @@ Never run e2e/infra targets against a non-local context (Makefile guards this; d
 
 ## Go conventions
 - Go version from `go.mod`; controller-runtime/controller-gen versions pinned (08 §2).
+- Every new source file starts with `// SPDX-License-Identifier: Apache-2.0` (Apache-2.0, see LICENSE).
 - Errors: `fmt.Errorf("doing x: %w", err)`; no `panic` outside `main`; sentinel errors in package `errors.go`.
 - Logging: `logr` from context (`log.FromContext(ctx)`), key/value pairs, keys in lowerCamel (`cluster`, `instance`, `lsn`). **Never log secrets, passwords, verifiers, connection strings with passwords, notification webhook URLs, or full SQL containing credentials.**
 - Contexts with deadlines on every network/SQL call.
