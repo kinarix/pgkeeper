@@ -13,7 +13,7 @@ The instance manager (IM) is a static Go binary that runs as **PID 1** in the Po
 volumes:
   - name: pgkeeper-tools
     image:                                   # K8s ≥1.35 (beta, default on), GA in 1.36
-      reference: ghcr.io/<org>/pgkeeper-tools:<version>@sha256:...
+      reference: ghcr.io/kinarix/pgkeeper-tools:<version>@sha256:...
       pullPolicy: IfNotPresent
   - name: pgkeeper-run      {emptyDir: {}}                 # writable runtime dir
   - name: tmp               {emptyDir: {}}

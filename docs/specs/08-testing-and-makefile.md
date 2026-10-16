@@ -73,7 +73,7 @@ SeaweedFS (S3), fake-gcs-server, Azurite, SFTP server (generated host key, known
 ### 5.1 Requirements
 1. `make help` (default goal) prints every target with its `## description`, grouped by `##@ Section` headers.
 2. All tools installed to `$(LOCALBIN)=./bin` as versioned files (`bin/kind-v0.33.0`) with an unversioned symlink; re-running is a no-op. No `sudo`, no global installs, no `curl | sh`.
-3. Every variable overridable from env (`?=`): `IMG_REGISTRY`, `IMG_TAG` (default `git describe --tags --dirty --always`), `CLUSTER_PROVIDER` (`kind`|`k3d`, default `kind`), `CLUSTER_NAME` (default `pgkeeper`), `KIND_K8S_VERSION`, `PG_VERSIONS` (default `16 17 18`), `E2E_FOCUS`, `E2E_PARALLEL`, `ARTIFACTS`.
+3. Every variable overridable from env (`?=`): `IMG_REGISTRY` (default `ghcr.io/kinarix`; local registries for kind/k3d via `images-load`), `IMG_TAG` (default `git describe --tags --dirty --always`), `CLUSTER_PROVIDER` (`kind`|`k3d`, default `kind`), `CLUSTER_NAME` (default `pgkeeper`), `KIND_K8S_VERSION`, `PG_VERSIONS` (default `16 17 18`), `E2E_FOCUS`, `E2E_PARALLEL`, `ARTIFACTS`.
 4. Idempotent: `make cluster-up` on an existing cluster exits 0; `make cluster-down` on a missing one exits 0.
 5. Fail fast with actionable messages (e.g. docker not running, insufficient memory).
 6. CI uses the **same** targets (no logic in CI YAML beyond matrix variables).

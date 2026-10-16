@@ -1,6 +1,6 @@
 # 00 — Overview, Challenged Requirements, Architecture, Decisions
 
-> Project codename: **pgkeeper** (placeholder — rename everywhere in one PR before Phase 1 ends; the API group `pgkeeper.io` is baked into every CRD).
+> Project: **pgkeeper**, repo `github.com/kinarix/pgkeeper`, images under `ghcr.io/kinarix/`, CRD API group `pgkeeper.io` (baked into every CRD, label and annotation; the `pgkeeper.io` domain should be held by kinarix so no other project can claim the group).
 > Status: design. Research snapshot taken **2026-10-15**. Every external version below must be re-verified at the start of the phase that first uses it.
 
 ## 1. Purpose
