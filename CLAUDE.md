@@ -2,7 +2,7 @@
 
 Kubernetes operator for highly available PostgreSQL on **unmodified official `postgres` images**: CRD-driven clusters, streaming replication, lease-based safe failover, switchover/pinning, WAL-G backups with PITR, role/database/grant CRDs, metrics, and a dashboard with live access logs. Go, kubebuilder/controller-runtime. Tested locally on kind and k3d.
 
-> Repo `github.com/kinarix/pgkeeper` (Go module path), images `ghcr.io/kinarix/pgkeeper-{operator,tools,dashboard}`, CRD API group `pgkeeper.io`. These names are final; the API group is baked into every CRD, label and annotation.
+> Repo `github.com/kinarix/pgkeeper` (Go module path), images `ghcr.io/kinarix/pgkeeper-{operator,tools,dashboard}`, CRD API group `pgkeeper.in`. These names are final; the API group is baked into every CRD, label and annotation.
 
 ## Read first
 | When | Read |

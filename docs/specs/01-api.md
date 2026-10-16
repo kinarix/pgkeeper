@@ -1,6 +1,6 @@
 # 01 — API (CRDs)
 
-API group `pgkeeper.io`, version `v1alpha1` until Phase 28. All kinds are **namespaced**. Validation is OpenAPI + CEL (`x-kubernetes-validations`); no admission webhook (ADR-008).
+API group `pgkeeper.in`, version `v1alpha1` until Phase 28. All kinds are **namespaced**. Validation is OpenAPI + CEL (`x-kubernetes-validations`); no admission webhook (ADR-008).
 
 ## 0. Conventions (apply to every kind)
 
@@ -11,16 +11,16 @@ API group `pgkeeper.io`, version `v1alpha1` until Phase 28. All kinds are **name
 - Durations are strings parsed by `metav1.Duration` (`"15s"`, `"10m"`). Quantities use `resource.Quantity`.
 - Fields marked **immutable** use CEL transition rules: `self == oldSelf`.
 - Short names: `pgc`, `pgsw`, `pgpo`, `pgrole`, `pgdb`, `pggrant`, `pgbs`, `pgbackup`, `pgsb`, `pgpool`.
-- Finalizer: `pgkeeper.io/finalizer` on kinds that own external state (Cluster, Role, Database, Grant, Backup).
+- Finalizer: `pgkeeper.in/finalizer` on kinds that own external state (Cluster, Role, Database, Grant, Backup).
 - Annotations understood on any kind:
-  - `pgkeeper.io/reconcile: paused` — controller records `Paused=True` and does nothing else.
-  - `pgkeeper.io/requested-by` — set by the dashboard to the end-user identity for audit.
+  - `pgkeeper.in/reconcile: paused` — controller records `Paused=True` and does nothing else.
+  - `pgkeeper.in/requested-by` — set by the dashboard to the end-user identity for audit.
 
 ## 1. PostgresCluster
 
 ### 1.1 Example
 ```yaml
-apiVersion: pgkeeper.io/v1alpha1
+apiVersion: pgkeeper.in/v1alpha1
 kind: PostgresCluster
 metadata:
   name: orders
@@ -257,7 +257,7 @@ Printer columns: Instances, Ready, Primary, Phase, PG, Age.
 |---|---|---|
 | Pod | `<cluster>-<serial>` | serial never reused |
 | PVC | `<cluster>-<serial>`, `<cluster>-<serial>-wal` | |
-| Service | `<cluster>-rw`, `<cluster>-ro`, `<cluster>-r` | selector on `pgkeeper.io/role` |
+| Service | `<cluster>-rw`, `<cluster>-ro`, `<cluster>-r` | selector on `pgkeeper.in/role` |
 | Service (headless) | `<cluster>-instances` | per-pod DNS for replication |
 | Lease | `<cluster>-primary` | coordination.k8s.io/v1 |
 | Secret | `<cluster>-ca`, `<cluster>-server-tls`, `<cluster>-replication-tls` (key pairs for `streaming_replica` and `pgkeeper_rewind`), `<cluster>-im-tls`, `<cluster>-app` (if generated), `<cluster>-superuser` (only if `spec.superuserAccess: true`) | |
@@ -268,11 +268,11 @@ Printer columns: Instances, Ready, Primary, Phase, PG, Age.
 | PostgresPrimaryOverride | `<cluster>-primary-override` | created/updated by the operator on failover or switchover; deleted only by a human (§12) |
 | NetworkPolicy (optional) | `<cluster>-default` | Phase 26 |
 
-Labels on everything: `app.kubernetes.io/name=postgresql`, `app.kubernetes.io/managed-by=pgkeeper`, `pgkeeper.io/cluster=<name>`; Pods/PVCs also `pgkeeper.io/instance=<pod>`, Pods also `pgkeeper.io/role=primary|replica`.
+Labels on everything: `app.kubernetes.io/name=postgresql`, `app.kubernetes.io/managed-by=pgkeeper`, `pgkeeper.in/cluster=<name>`; Pods/PVCs also `pgkeeper.in/instance=<pod>`, Pods also `pgkeeper.in/role=primary|replica`.
 
 ## 2. PostgresSwitchover (one-shot)
 ```yaml
-apiVersion: pgkeeper.io/v1alpha1
+apiVersion: pgkeeper.in/v1alpha1
 kind: PostgresSwitchover
 metadata: {name: orders-maint-20261015, namespace: team-a}
 spec:
@@ -295,7 +295,7 @@ Rules: `spec` immutable (`self == oldSelf` on the whole spec). On completion of 
 
 ## 3. PostgresRole
 ```yaml
-apiVersion: pgkeeper.io/v1alpha1
+apiVersion: pgkeeper.in/v1alpha1
 kind: PostgresRole
 metadata: {name: orders-reporting, namespace: team-a}
 spec:
@@ -326,7 +326,7 @@ Reserved names rejected by CEL: `postgres`, `streaming_replica`, `pgkeeper_*`, n
 
 ## 4. PostgresDatabase
 ```yaml
-apiVersion: pgkeeper.io/v1alpha1
+apiVersion: pgkeeper.in/v1alpha1
 kind: PostgresDatabase
 metadata: {name: orders-analytics, namespace: team-a}
 spec:
@@ -347,7 +347,7 @@ Rules: `databaseName` not in `postgres`, `template0`, `template1`. Extensions no
 
 ## 5. PostgresGrant
 ```yaml
-apiVersion: pgkeeper.io/v1alpha1
+apiVersion: pgkeeper.in/v1alpha1
 kind: PostgresGrant
 metadata: {name: reporting-reads-analytics, namespace: team-a}
 spec:
@@ -373,7 +373,7 @@ Semantics: the controller manages **exactly** the (role, object, privilege) tupl
 
 ## 6. PostgresBackupStore
 ```yaml
-apiVersion: pgkeeper.io/v1alpha1
+apiVersion: pgkeeper.in/v1alpha1
 kind: PostgresBackupStore
 metadata: {name: s3-prod, namespace: team-a}
 spec:
@@ -406,7 +406,7 @@ SFTP without `knownHostsSecretRef` is rejected (no TOFU host-key trust).
 
 ## 7. PostgresBackup (one-shot)
 ```yaml
-apiVersion: pgkeeper.io/v1alpha1
+apiVersion: pgkeeper.in/v1alpha1
 kind: PostgresBackup
 metadata: {name: orders-adhoc-1, namespace: team-a}
 spec:
@@ -433,7 +433,7 @@ Spec immutable. Deleting the CR does **not** delete the backup from storage unle
 
 ## 8. PostgresScheduledBackup
 ```yaml
-apiVersion: pgkeeper.io/v1alpha1
+apiVersion: pgkeeper.in/v1alpha1
 kind: PostgresScheduledBackup
 metadata: {name: orders-nightly, namespace: team-a}
 spec:
@@ -490,7 +490,7 @@ spec:
 
 ## 12. PostgresPrimaryOverride (operator-created, human-deleted)
 ```yaml
-apiVersion: pgkeeper.io/v1alpha1
+apiVersion: pgkeeper.in/v1alpha1
 kind: PostgresPrimaryOverride
 metadata:
   name: orders-primary-override     # exactly one per cluster

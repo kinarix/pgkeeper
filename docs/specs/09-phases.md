@@ -43,7 +43,7 @@ Rules
 
 ## Phase 0 — Repo, toolchain, Makefile, local clusters
 **Goal:** a clean machine with docker+go+make can run `make dev` and get an empty operator running on kind and k3d.
-**Scope:** kubebuilder v4 scaffold (`--domain pgkeeper.io --repo github.com/kinarix/pgkeeper`, repo layout per CLAUDE.md), multi-binary layout (`cmd/operator`, `cmd/instance`, `cmd/dashboard`), Makefile with all **General/Development/Build/Local cluster/Deploy** targets (08 §5) — E2E targets as stubs that exit 0 with "not yet implemented"; `hack/kind`, `hack/k3d` configs with local registries; tools image Dockerfile (`FROM scratch`) containing a placeholder `pgkeeper-instance` with a working `install --to` subcommand (init-copy has no shell, 02 §2), the image-volume node-capability table (minimum kubelet + containerd/CRI-O versions) verified and pinned and WAL-G built from pinned commit (`make build-walg`); golangci-lint config incl. depguard; CI workflow running `verify lint test`.
+**Scope:** kubebuilder v4 scaffold (`--domain pgkeeper.in --repo github.com/kinarix/pgkeeper`, repo layout per CLAUDE.md), multi-binary layout (`cmd/operator`, `cmd/instance`, `cmd/dashboard`), Makefile with all **General/Development/Build/Local cluster/Deploy** targets (08 §5) — E2E targets as stubs that exit 0 with "not yet implemented"; `hack/kind`, `hack/k3d` configs with local registries; tools image Dockerfile (`FROM scratch`) containing a placeholder `pgkeeper-instance` with a working `install --to` subcommand (init-copy has no shell, 02 §2), the image-volume node-capability table (minimum kubelet + containerd/CRI-O versions) verified and pinned and WAL-G built from pinned commit (`make build-walg`); golangci-lint config incl. depguard; CI workflow running `verify lint test`.
 **Out:** any CRD logic.
 **Acceptance (`accept-p0`):** `make doctor tools verify lint test`; `make cluster-up` twice (idempotent) for both providers; `make docker-build images-load deploy`; operator pod Ready; `wal-g --version` runs inside a `postgres:18` container with the tools image mounted as image volume (kind 1.36) **and** via init-copy (kind 1.34); `make cluster-down` twice.
 
@@ -62,7 +62,7 @@ Rules
 
 ## Phase 4 — Configuration management & drift repair
 **Goal:** spec changes and manual tampering converge.
-**Scope:** parameter changes → reload; `pending_restart` detection → the single instance is restarted via a temporary pod-annotation handshake (`pgkeeper.io/restart-requested`, read by the IM; replaced by `/v1/restart` in Phase 5); SSA field manager; owned-object watches; periodic resync; events `DriftCorrected`.
+**Scope:** parameter changes → reload; `pending_restart` detection → the single instance is restarted via a temporary pod-annotation handshake (`pgkeeper.in/restart-requested`, read by the IM; replaced by `/v1/restart` in Phase 5); SSA field manager; owned-object watches; periodic resync; events `DriftCorrected`.
 **Acceptance:** envtest: delete Service → recreated; edit Service selector → restored; change pod label → restored. e2e: change `work_mem` → visible via `SHOW` within 30 s without restart; change `shared_buffers` → instance restarts once and `ConfigApplied=True`; HBA change applied by reload.
 
 ## Phase 5 — IM status API (mTLS) & cluster status

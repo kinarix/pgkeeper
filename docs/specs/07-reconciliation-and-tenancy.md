@@ -29,7 +29,7 @@
 
 ## 3. Lifecycle & deletion
 - Cluster creation order: Secrets/CA → SA/RBAC → Lease (pre-created, empty holder) → ConfigMap → Services → PVC → Pod 1 → wait primary → replicas.
-- **Deletion** (finalizer): (1) set `phase: Deleting`; (2) delete Switchover/Backup children; (3) stop pods replicas-first, primary last (fast); (4) if `deletionPolicy: Delete` delete PVCs and generated Secrets; else leave PVCs labelled `pgkeeper.io/orphaned-from=<uid>` (re-creating a cluster with the same name does **not** silently adopt them — `bootstrap.adoptPVCs: true` is a later feature); (5) remove finalizer. Backups in stores are **never** deleted on cluster deletion.
+- **Deletion** (finalizer): (1) set `phase: Deleting`; (2) delete Switchover/Backup children; (3) stop pods replicas-first, primary last (fast); (4) if `deletionPolicy: Delete` delete PVCs and generated Secrets; else leave PVCs labelled `pgkeeper.in/orphaned-from=<uid>` (re-creating a cluster with the same name does **not** silently adopt them — `bootstrap.adoptPVCs: true` is a later feature); (5) remove finalizer. Backups in stores are **never** deleted on cluster deletion.
 - Role/Database/Grant deletion when the cluster is already gone: finalizer removed without SQL (log + event).
 - Operator uninstall must not delete clusters: CRDs are installed separately from the operator Deployment (`make install` vs `make deploy`), and Helm chart sets `helm.sh/resource-policy: keep` on CRDs.
 
@@ -39,10 +39,10 @@
 |---|---|---|
 | `all` (default) | — | ClusterRole + ClusterRoleBinding |
 | `list` | `--watch-namespaces=a,b,c` | Role+RoleBinding per namespace (kustomize overlay generates), cache restricted via `cache.Options.DefaultNamespaces` |
-| `selector` | `--watch-namespace-selector=pgkeeper.io/managed=true` | ClusterRole (needs namespace list/watch); controller filters events by namespace label (namespace informer + predicate) |
+| `selector` | `--watch-namespace-selector=pgkeeper.in/managed=true` | ClusterRole (needs namespace list/watch); controller filters events by namespace label (namespace informer + predicate) |
 
 ### 4.2 Multiple operator installs
-- Each install has an `--instance-id` (default `default`). CRs may carry label `pgkeeper.io/operator-instance=<id>`; an operator ignores CRs labelled for another id and, in `all` mode, ignores unlabeled CRs if `--require-instance-label` is set. Prevents two operators fighting over one cluster.
+- Each install has an `--instance-id` (default `default`). CRs may carry label `pgkeeper.in/operator-instance=<id>`; an operator ignores CRs labelled for another id and, in `all` mode, ignores unlabeled CRs if `--require-instance-label` is set. Prevents two operators fighting over one cluster.
 - CRDs are shared cluster-wide; CRD version upgrades are coordinated by the platform team (documented runbook).
 
 ### 4.3 Fairness and isolation

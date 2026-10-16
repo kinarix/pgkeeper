@@ -144,7 +144,7 @@ Browser ◄── Server-Sent Events (status deltas, log lines)
 - **Live logs:** per instance or merged; filter by category (`access` default), user, database, severity, free-text (client-side over the live window); pause/resume; max 5,000 lines buffered in browser; server enforces max 10 concurrent streams per user and drops lines when the client is slow (shows "N lines dropped").
 - **Access log view:** tabular live feed of normalised access records + counters (connections/min, auth failures/min by user) computed over the live window.
 ### v2 (Phase 25, actions)
-- Trigger switchover (choose target, Graceful/Fast), trigger backup (Full/Delta), fence/unfence instance, **acknowledge failover** (delete the PostgresPrimaryOverride; the dialog states whether a switchback will follow), pause/resume reconcile — each creates/patches CRs **as the user** (so RBAC applies) and sets `pgkeeper.io/requested-by`.
+- Trigger switchover (choose target, Graceful/Fast), trigger backup (Full/Delta), fence/unfence instance, **acknowledge failover** (delete the PostgresPrimaryOverride; the dialog states whether a switchback will follow), pause/resume reconcile — each creates/patches CRs **as the user** (so RBAC applies) and sets `pgkeeper.in/requested-by`.
 - Confirmation dialogs showing the impact text from 03 §12.
 
 ### Non-features

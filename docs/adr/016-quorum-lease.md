@@ -44,7 +44,7 @@ There is still one mechanism and one timer: the holder fences when its valid gra
 
 **Sequential failures go down to the last survivor.** When an instance has been failed for `voterRemovalDelay` (default 30 s, ≥ 2 × `leaseDuration`), the operator removes it from the voter set (see membership changes below). n shrinks, `Qa` shrinks with it, and failover stays possible: 3 → 2 → 1 surviving instances, as long as each failure is noticed before the next one.
 
-**Simultaneous failures** (the primary and enough voters lost at once, e.g. n = 3 with the primary and one replica dead before removal) block automatic failover, with condition `QuorumUnavailable`. That's the price of surviving API-server outages. The survivor can't tell "they're dead" from "they're partitioned and still serving writes together". A human can force it with a PostgresSwitchover (`mode: Fast`) plus the annotation `pgkeeper.io/force-promote: <instance>`, after confirming the lost instances are really down (e.g. node gone). The operator then removes them from the voter set without their acknowledgement.
+**Simultaneous failures** (the primary and enough voters lost at once, e.g. n = 3 with the primary and one replica dead before removal) block automatic failover, with condition `QuorumUnavailable`. That's the price of surviving API-server outages. The survivor can't tell "they're dead" from "they're partitioned and still serving writes together". A human can force it with a PostgresSwitchover (`mode: Fast`) plus the annotation `pgkeeper.in/force-promote: <instance>`, after confirming the lost instances are really down (e.g. node gone). The operator then removes them from the voter set without their acknowledgement.
 
 ### Grants
 A voter V grants candidate C a lease for term t only if:
@@ -56,7 +56,7 @@ A voter V grants candidate C a lease for term t only if:
 A grant expires at V's monotonic now + `leaseDuration`. A renewal by the current holder extends it under the same rules, so a voter that sees `targetPrimary` move elsewhere stops renewing the old holder.
 
 - **Instance voters** persist (candidate, term, voterEpoch) in PGDATA with fsync. A monotonic expiry can't survive a restart, so after restarting, a voter treats its persisted grant as freshly given and refuses other candidates for a full `leaseDuration`.
-- **The K8s Lease voter** is today's lease: holder, plus `pgkeeper.io/term` and `pgkeeper.io/voter-epoch` annotations, updated by compare-and-swap on resourceVersion. Expiry is judged with client-go semantics (each observer's monotonic clock since its last observed change).
+- **The K8s Lease voter** is today's lease: holder, plus `pgkeeper.in/term` and `pgkeeper.in/voter-epoch` annotations, updated by compare-and-swap on resourceVersion. Expiry is judged with client-go semantics (each observer's monotonic clock since its last observed change).
 
 ### Holder rule
 Every `retryPeriod`, the holder renews with all voters in parallel. An independent deadline timer (not the renew loop) fences the instance when its valid grants form no sustain quorum: immediate stop, then SIGKILL after `fenceTimeout`.

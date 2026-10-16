@@ -15,7 +15,7 @@
    - password: set only when (a) the Secret's resourceVersion differs from `status.passwordSecretVersion`, or (b) **drift**: SHA-256 of the current `rolpassword` (computed by the IM, never returned in clear) differs from `status.appliedVerifierHash`, i.e. someone changed the password outside pgkeeper. A freshly computed verifier is never compared with `rolpassword` directly — its random salt makes it differ every time. After setting, the operator stores the new verifier's SHA-256 in `status.appliedVerifierHash`;
    - membership: `GRANT`/`REVOKE` for declared `memberOf` diff; memberships not declared and not previously granted by this CR are left alone;
    - `COMMENT ON ROLE x IS 'pgkeeper:<namespace>/<name>:<uid>'` — ownership marker.
-4. If the role exists without our marker → condition `Applied=False reason=RoleExistsUnmanaged` (no takeover unless annotation `pgkeeper.io/adopt: "true"`).
+4. If the role exists without our marker → condition `Applied=False reason=RoleExistsUnmanaged` (no takeover unless annotation `pgkeeper.in/adopt: "true"`).
 
 ### 1.2 Drift
 - Periodic resync (default 10 min, plus on every Secret change via watch) re-runs reconcile; any change applied counts as drift → `DriftDetected=True` with a short description, event, metric `pgkeeper_drift_corrections_total{kind="role"}`.
@@ -36,7 +36,7 @@
 - IM: `CREATE DATABASE` (outside transaction) with owner/encoding/locale/template; later `ALTER DATABASE ... OWNER TO`, `CONNECTION LIMIT`; per-database connection for `CREATE EXTENSION IF NOT EXISTS ... SCHEMA ... VERSION ...` / `ALTER EXTENSION ... UPDATE TO`, `CREATE SCHEMA IF NOT EXISTS ... AUTHORIZATION ...`.
 - Marker: `COMMENT ON DATABASE`.
 - Immutable fields changing on an existing DB → `UnsupportedChange`.
-- Deletion `Drop`: refuse if active connections unless annotation `pgkeeper.io/force-drop: "true"` (then `DROP DATABASE ... WITH (FORCE)`).
+- Deletion `Drop`: refuse if active connections unless annotation `pgkeeper.in/force-drop: "true"` (then `DROP DATABASE ... WITH (FORCE)`).
 
 ## 3. Grants (`PostgresGrant`)
 - Desired set = expansion of the spec into tuples `(objectType, objectIdentity, privilege, grantOption)` for the role. `scope: AllInSchema` expands at reconcile time to current objects **and** is re-expanded on every resync (new tables get grants within one resync; for immediate effect users set `defaultPrivileges`).
@@ -76,7 +76,7 @@ host    all          all                all                 reject     # no non-
 ## 6. Kubernetes RBAC
 ### 6.1 Operator ServiceAccount
 Cluster-scoped install (watch all namespaces): ClusterRole with:
-- `pgkeeper.io/*` all verbs + status/finalizers
+- `pgkeeper.in/*` all verbs + status/finalizers
 - pods, pvcs, services, secrets, configmaps, serviceaccounts, events: create/get/list/watch/update/patch/delete
 - roles, rolebindings (to create per-cluster IM roles): create/get/list/watch/update/patch/delete. No `bind`/`escalate`: the operator already holds every permission it grants the IM, which is what the Kubernetes escalation check requires.
 - leases (coordination.k8s.io): get/list/watch/update/patch/create/delete

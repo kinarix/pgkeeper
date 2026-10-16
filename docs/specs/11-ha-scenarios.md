@@ -373,7 +373,7 @@ sequenceDiagram
 - orders-3 needs the Lease plus `Qa = 2` instance votes. Only its own vote is available, so it can't promote.
 - The operator sets `PrimaryAvailable=False reason=QuorumUnavailable`. The cluster stays read-only (orders-3 keeps serving `-ro`).
 - **Why it waits:** from orders-3's view, "orders-1 and orders-2 are dead" looks identical to "they're cut off from me and the API server and still serving writes together" (they would be sustaining on each other).
-- **Human path:** confirm they're really down (e.g. the nodes are gone in the cloud console), then create a `PostgresSwitchover` with `mode: Fast` and `pgkeeper.io/force-promote: orders-3`. The operator removes the dead voters without acknowledgement, and orders-3 promotes with Lease + itself.
+- **Human path:** confirm they're really down (e.g. the nodes are gone in the cloud console), then create a `PostgresSwitchover` with `mode: Fast` and `pgkeeper.in/force-promote: orders-3`. The operator removes the dead voters without acknowledgement, and orders-3 promotes with Lease + itself.
 - **Data loss:** ≤ lag of orders-3 (async). With `Required` and `ANY 1`, orders-3 may lack commits only orders-2 had acknowledged; the forced promotion makes that explicit.
 - **Proof:** F13.
 
@@ -407,7 +407,7 @@ sequenceDiagram
 
 - Candidates whose lag vs the last known primary LSN exceeds `maxFailoverLag` (64 MiB) are excluded (03 §5.3).
 - If all are excluded: no failover, condition `NoEligibleCandidate`. The operator waits for a replica to catch up (if the primary is gone, it can only catch up from the WAL archive), or for a human to force it.
-- **Force:** `PostgresSwitchover mode: Fast` + `pgkeeper.io/force-promote: <instance>`, accepting the loss of everything beyond that replica's LSN.
+- **Force:** `PostgresSwitchover mode: Fast` + `pgkeeper.in/force-promote: <instance>`, accepting the loss of everything beyond that replica's LSN.
 
 ## 16. Synchronous replication `Required`
 
