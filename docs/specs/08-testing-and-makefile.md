@@ -96,6 +96,7 @@ generate             controller-gen object (deepcopy)
 manifests            controller-gen crd rbac webhook → config/crd, config/rbac
 api-docs             Generate docs/api-reference.md from Go types
 verify               generate+manifests+fmt then fail if git diff is non-empty
+dco                  Check every commit in $(DCO_BASE)..HEAD has a DCO sign-off by its author (default DCO_BASE=origin/main)
 
 ##@ Test
 test                 test-unit + test-envtest
@@ -152,7 +153,13 @@ clean                Remove ./bin, _artifacts, build outputs
 ```
 
 ### 5.3 CI (GitHub Actions or equivalent)
-- PR: `verify lint test test-im` + `e2e-smoke` on kind 1.36 / PG18 + `accept-p<N>` for phases touched.
+- PR: `dco` (first, cheap; `DCO_BASE` = the PR base commit) + `verify lint test test-im` + `e2e-smoke` on kind 1.36 / PG18 + `accept-p<N>` for phases touched.
+- **DCO check (`make dco`)** — pure git, no network, no third-party app:
+  - every non-merge commit in `$(DCO_BASE)..HEAD` must contain a trailer `Signed-off-by: <name> <email>` whose email equals the commit's **author** email (case-insensitive); co-author trailers don't count;
+  - merge commits are skipped;
+  - output lists each failing commit (short SHA, subject) and prints the fix: `git rebase --signoff $(DCO_BASE)` then force-push;
+  - required status check on `main` via branch protection (set by an org admin), so unsigned commits can't be merged;
+  - bot commits get no exemption — bots used by the repo (e.g. Dependabot) must be configured to sign off.
 - Nightly: `e2e-matrix`, `e2e-chaos` on kind 1.37 and k3d.
 - Release: `docker-build docker-push`, sign images (cosign), SBOM, Helm chart publish (Phase 28).
 

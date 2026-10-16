@@ -25,7 +25,7 @@ Signed-off-by: Your Name <you@example.com>
 
 Forgot? Fix the last commit with `git commit --amend -s --no-edit`, or a whole branch with `git rebase --signoff main`, then force-push your branch.
 
-Pull requests with unsigned commits can't be merged.
+Pull requests with unsigned commits can't be merged: CI runs `make dco`, which checks that every non-merge commit is signed off by its author. Run it locally before pushing (`make dco` once Phase 0 lands).
 
 ### The DCO text
 ```
