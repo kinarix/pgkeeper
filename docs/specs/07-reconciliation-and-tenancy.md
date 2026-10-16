@@ -20,7 +20,7 @@
 | Pods, PVCs, Services, Secrets, ConfigMaps, SAs, Roles, RoleBindings, PDBs, Leases (owned) | any change/deletion | re-apply / recreate (Pods recreated only via the rollout logic; a manually deleted primary pod = failover path) |
 | Nodes | Ready transitions | failure detection, stranded instances (03 §11) |
 | PostgresBackupStore | change | re-render WAL-G config hash → IMs reload |
-| Secrets referenced by Roles/Stores (not owned) | change | via field-indexer `spec.passwordSecretRef.name` → enqueue owners |
+| Secrets referenced by Roles/Stores/notifications/TLS `UserProvided` (not owned) | change (metadata-only watch) | field indexers on the referencing fields → enqueue owners; data read uncached (§4.3) |
 | Periodic resync | every `--sync-period` (default 10 min, jittered) | catches in-database drift (roles/grants/db), ALTER SYSTEM on PG16, slots |
 
 **In-Postgres drift** (things K8s watches cannot see) is checked by:
@@ -47,7 +47,8 @@
 
 ### 4.3 Fairness and isolation
 - Per-namespace work isn't throttled in v1, but per-cluster backoff (rate-limited queue) prevents a broken cluster from starving others.
-- Informer caches: only labelled objects (`app.kubernetes.io/managed-by=pgkeeper`) are cached for Pods/Secrets/ConfigMaps/PVCs (`cache.ByObject` label selectors) — memory stays bounded in big clusters (lesson: operators caching all Secrets have crash-looped in large Helm-heavy clusters).
+- Informer caches: only labelled objects (`app.kubernetes.io/managed-by=pgkeeper`) are cached in full for Pods/Secrets/ConfigMaps/PVCs (`cache.ByObject` label selectors) — memory stays bounded in big clusters (lesson: operators caching all Secrets have crash-looped in large Helm-heavy clusters).
+- **User-referenced Secrets** (role passwords, store credentials, webhook URLs, `UserProvided` TLS — unlabelled, owned by the user) are never in the full cache (ADR-022): the operator watches Secrets **metadata-only** (`PartialObjectMetadata`, a few hundred bytes each, no data) in watched namespaces to see changes, maps them to referencing CRs via field indexers, and reads the data with an uncached `GET` (APIReader) only when reconciling a referencing CR. The operator never adds labels to user Secrets (GitOps tools would fight it).
 - Scale target for v1: 200 PostgresClusters / 600 instances per operator install, reconcile p99 < 2 s at steady state (load-tested in Phase 26 with fake IMs).
 
 ## 5. Operator HA

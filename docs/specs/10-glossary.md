@@ -28,6 +28,8 @@
 
 **DiskPressure / WALDiskPressure** — cluster conditions set when an instance's data (or WAL) volume passes `diskThresholds` (default 85 % warning, 95 % critical), measured by the IM itself so it works on any storage. *Why it matters:* a full `pg_wal` stops the primary.
 
+**Shutdown handoff** — what the primary does on SIGTERM (pod delete, node shutdown): a clean fast stop, then it publishes the exact LSN where its WAL ends, and a replica that has received up to that LSN is promoted. *Intuition:* a relay runner who doesn't let go of the baton until the next runner has it. Zero lost commits, no `pg_rewind` (ADR-021).
+
 **Crash loop (`CrashLoop`)** — the primary's Postgres crashed `maxRestarts` times within `window` (default 5 in 5 min), or didn't come back within `startTimeout`. A single crash is fixed by restarting in place; a crash loop means restarting won't help, so the IM releases the lease and the operator fails over (ADR-019).
 
 **Backend OOM kill** — the kernel kills one Postgres backend for exceeding the memory limit; Postgres restarts all sessions (crash recovery) but the container keeps running, so restart counters don't notice. The IM reads the cgroup `oom_kill` count to catch it.

@@ -43,7 +43,7 @@ Rules
 
 ## Phase 0 — Repo, toolchain, Makefile, local clusters
 **Goal:** a clean machine with docker+go+make can run `make dev` and get an empty operator running on kind and k3d.
-**Scope:** kubebuilder v4 scaffold (`domain pgkeeper.io`, repo layout per CLAUDE.md), multi-binary layout (`cmd/operator`, `cmd/instance`, `cmd/dashboard`), Makefile with all **General/Development/Build/Local cluster/Deploy** targets (08 §5) — E2E targets as stubs that exit 0 with "not yet implemented"; `hack/kind`, `hack/k3d` configs with local registries; tools image Dockerfile (`FROM scratch`) containing a placeholder `pgkeeper-instance` and WAL-G built from pinned commit (`make build-walg`); golangci-lint config incl. depguard; CI workflow running `verify lint test`.
+**Scope:** kubebuilder v4 scaffold (`domain pgkeeper.io`, repo layout per CLAUDE.md), multi-binary layout (`cmd/operator`, `cmd/instance`, `cmd/dashboard`), Makefile with all **General/Development/Build/Local cluster/Deploy** targets (08 §5) — E2E targets as stubs that exit 0 with "not yet implemented"; `hack/kind`, `hack/k3d` configs with local registries; tools image Dockerfile (`FROM scratch`) containing a placeholder `pgkeeper-instance` with a working `install --to` subcommand (init-copy has no shell, 02 §2), the image-volume node-capability table (minimum kubelet + containerd/CRI-O versions) verified and pinned and WAL-G built from pinned commit (`make build-walg`); golangci-lint config incl. depguard; CI workflow running `verify lint test`.
 **Out:** any CRD logic.
 **Acceptance (`accept-p0`):** `make doctor tools verify lint test`; `make cluster-up` twice (idempotent) for both providers; `make docker-build images-load deploy`; operator pod Ready; `wal-g --version` runs inside a `postgres:18` container with the tools image mounted as image volume (kind 1.36) **and** via init-copy (kind 1.34); `make cluster-down` twice.
 
@@ -86,10 +86,10 @@ Rules
 
 ## Phase 9 — Planned switchover
 **Scope:** `PostgresSwitchover` CRD + controller + IM `/v1/demote`, `/v1/promote` (03 §7), shutdown-LSN handoff, single-active rule, TTL cleanup, operator probe measuring `writeUnavailableMillis`, `PostgresPrimaryOverride` CRD + `targetPrimary` precedence function (03 §8.1) — switchover completion creates/updates the override.
-**Acceptance:** e2e `p9-switchover`: 10 consecutive switchovers under ledger write load → 0 lost acked writes, 0 overlap, p95 write unavailability ≤ 5 s; switchover to a lagging target is Rejected; concurrent second switchover Rejected; old primary rejoins with no pg_rewind needed (asserted from IM logs).
+**Acceptance:** e2e `p9-switchover`: 10 consecutive switchovers (5 `Graceful`, 5 `Fast`) under ledger write load → 0 lost acked writes, 0 overlap, p95 write unavailability ≤ 5 s; switchover to a lagging target is Rejected; concurrent second switchover Rejected; old primary rejoins with no pg_rewind needed (asserted from IM logs); `kubectl delete pod` of the primary under ledger load → shutdown handoff, 0 lost acked writes, no rewind (ADR-021); fast stop forced to exceed its wait (blocked WAL sender) → `lossy: true`, old primary rejoins via rewind.
 
 ## Phase 10 — Automatic failover & rejoin
-**Scope:** failure detection (03 §5.1), damping (§5.2), candidate selection (§5.3, async path), promotion workflow (§5.4) incl. creating/updating the PostgresPrimaryOverride and `FailoverUnacknowledged`, pg_rewind rejoin (§5.5), stranded-instance handling (§11), crash handling on the primary (`spec.ha.crashHandling`, 03 §3.7, ADR-019), events/metrics.
+**Scope:** failure detection (03 §5.1), damping (§5.2), candidate selection (§5.3, async path), promotion workflow (§5.4) incl. creating/updating the PostgresPrimaryOverride and `FailoverUnacknowledged`, pg_rewind rejoin (§5.5) incl. the `pgkeeper_rewind` role and HBA (password auth until Phase 14 — TODO(P14)), stranded-instance handling (§11), crash handling on the primary (`spec.ha.crashHandling`, 03 §3.7, ADR-019), events/metrics.
 **Acceptance:** unit/property tests for candidate selection; model tests extended with operator; e2e-chaos subset: kill primary pod, stop primary's kind node container, partition primary, kill operator during failover, SIGSTOP primary postmaster > lease duration (documented expected loss with async) → for each: new primary ≤ 30 s, overlap = 0 s, cluster Healthy after heal, old primary rejoins via rewind.
 
 **Acceptance (crash handling):** e2e: kill the primary's postmaster once → restarted in place, same primary, no override, 0 lost acked writes; kill it `maxRestarts` times within `window` → `CrashLoop`, failover, override created; `policy: FailoverImmediately` → first kill fails over; single-instance cluster in crash loop keeps restarting and reports `CrashLoop`.
@@ -100,7 +100,7 @@ Rules
 **Acceptance:** model tests (rapid) green with ≥ 10k steps including voter restarts and membership changes; test-im with in-process voters; e2e-chaos on kind **and** k3d in mode `Peers`: every row F1–F16 of ADR-016 meets its expected outcome, overlap = 0 s throughout; on k3d, restarting the single server causes no fence.
 
 ## Phase 11 — Synchronous replication
-**Scope:** `replication.synchronous` (Off/Quorum, Preferred/Required), maintenance of `synchronous_standby_names` by primary IM, degraded handling, candidate-selection quorum rule (§5.3 step 4).
+**Scope:** `replication.synchronous` (Off/Quorum, Preferred/Required), maintenance of `synchronous_standby_names` by primary IM, degraded handling, `SynchronousCommitOverridden` condition, candidate-selection quorum rule (§5.3 step 4).
 **Acceptance:** e2e-chaos with `Required`: all fault scenarios incl. SIGSTOP freeze → **0 lost acked writes, 0 stolen ids**; `Preferred` with 2 replicas down keeps accepting writes and sets `SynchronousDegraded`.
 
 ## Phase 12 — Primary pinning
@@ -109,7 +109,7 @@ Rules
 
 ## Phase 13 — Primary-aware rolling updates
 **Scope:** spec-hash per pod, replica-first rollout, Switchover/Restart strategies, Supervised mode, eviction-aware switchover, `--max-concurrent-cluster-rollouts`.
-**Acceptance:** e2e: minor image bump (e.g. 18.x → 18.y digest) under ledger load → one switchover, write unavailability ≤ 5 s, 0 lost writes; Supervised waits for a PostgresSwitchover; single-instance uses Restart; `kubectl drain` primary node → switchover precedes eviction.
+**Acceptance:** e2e: minor image bump (e.g. 18.x → 18.y digest) under ledger load → one switchover, write unavailability ≤ 5 s, 0 lost writes; Supervised waits for a PostgresSwitchover; single-instance uses Restart; `kubectl drain` primary node → switchover (triggered by the cordon, 03 §9) precedes eviction, no override created.
 
 ## Phase 14 — TLS
 **Scope:** 05 §5 all modes; cert auth for `streaming_replica` (remove TODO(P14) password); HBA final form (no non-TLS remote); rotation; per-role connection Secrets (opt-in field reserved for Phase 15); cert-manager integration tested if cert-manager installed by `make infra-up CERT_MANAGER=1`.
@@ -117,7 +117,7 @@ Rules
 
 ## Phase 15 — PostgresRole
 **Scope:** 05 §1 incl. SCRAM verifier, password rotation on Secret change, adopt annotation, deletion policies, drift resync, connection Secret.
-**Acceptance:** envtest + e2e: create role → login works; rotate Secret → old password fails, new works within 60 s; manual `ALTER ROLE ... CONNECTION LIMIT 1` → reverted on resync with `DriftDetected` event; password never appears in Postgres logs (grep artifacts) nor operator logs; Drop policy reassigns owned objects.
+**Acceptance:** envtest + e2e: create role → login works; rotate Secret (unlabelled, user-owned — ADR-022) → old password fails, new works within 60 s; 10 resyncs without changes apply nothing and raise no `DriftDetected`; manual `ALTER ROLE ... PASSWORD` → restored with `DriftDetected`; manual `ALTER ROLE ... CONNECTION LIMIT 1` → reverted on resync with `DriftDetected` event; password never appears in Postgres logs (grep artifacts) nor operator logs; Drop policy reassigns owned objects.
 
 ## Phase 16 — PostgresDatabase
 **Acceptance:** create db with owner, extensions (contrib) and schemas; immutable change → UnsupportedChange; Drop with active connections refused unless force annotation.
@@ -127,7 +127,7 @@ Rules
 
 ## Phase 18 — Backup stores & continuous WAL archiving
 **Scope:** `PostgresBackupStore` (S3 first, then SFTP, PVC, GCS/Azure behind emulator caveats), store verification probe, WAL-G env rendering, `wal-archive`/`wal-restore` subcommands via IM socket, parallel archive look-ahead, I6 ownership file, status & conditions, metrics.
-**Acceptance:** e2e (SeaweedFS + SFTP): archiving runs, `pg_switch_wal()` segment appears in store within 10 s; failover → new timeline + history file archived; store creds wrong → `ContinuousArchiving=False`, WAL accumulates, fix creds → drains; second cluster pointed at same serverName → refused.
+**Acceptance:** e2e (SeaweedFS + SFTP): archiving runs, `pg_switch_wal()` segment appears in store within 10 s; failover → new timeline + history file archived; primary's egress to the store blocked, `pg_switch_wal()`, primary killed before it archives → the segment reaches the store via a replica (ADR-020) and PITR across that failover has no gap; same name with different content → `ArchiveConflict`, never overwritten; store creds wrong → `ContinuousArchiving=False`, WAL accumulates, fix creds → drains; second cluster pointed at same serverName → refused.
 
 ## Phase 19 — On-demand base backups
 **Scope:** `PostgresBackup` Full/Delta, PreferStandby selection, delta parent resolution & fallback, completion only after stop-LSN archived, queueing.
@@ -150,7 +150,7 @@ Rules
 
 ## Phase 24 — Dashboard v1
 **Scope:** 06 §4–§5 v1: OIDC (Dex locally), impersonation, fleet/cluster views, SSE status, live logs via pod-log follow with filters, access log view, limits & drop accounting, security headers.
-**Acceptance:** Go API tests with Dex: user A (viewer of ns a) sees only ns a clusters and logs; user B denied; SSE delivers status change within 5 s of a switchover; log stream shows new `access` line within 3 s of a login; Playwright smoke: login → cluster view → logs tab.
+**Acceptance:** Go API tests with Dex: user A (viewer of ns a) sees only ns a clusters and logs; user B denied; the dashboard holds no IM client cert and never connects to port 8000 (ADR-010); SSE delivers status change within 5 s of a switchover; log stream shows new `access` line within 3 s of a login; Playwright smoke: login → cluster view → logs tab.
 
 ## Phase 25 — Dashboard v2 (actions)
 **Acceptance:** switchover/backup/fence/acknowledge-failover via UI create or delete CRs with `requested-by`; viewer role gets 403 from K8s (not from dashboard logic); audit log line emitted; CSRF test.

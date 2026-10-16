@@ -128,7 +128,6 @@ pgkeeper-dashboard (Go, net/http, embedded SPA)
    ├─ K8s API with Impersonate-User/Group = OIDC subject/groups   (ADR-010)
    │     list/watch CRs, read Lease, create PostgresSwitchover/PostgresBackup
    │     GET pods/{name}/log?follow=true   (live tail, ADR-011)
-   ├─ IM /v1/status over mTLS (read-only cert) for fresh per-instance detail
    └─ Prometheus HTTP API (optional, PROMETHEUS_URL) for sparkline charts
 Browser ◄── Server-Sent Events (status deltas, log lines)
 ```
@@ -140,6 +139,7 @@ Browser ◄── Server-Sent Events (status deltas, log lines)
 ## 5. Dashboard features
 ### v1 (Phase 24, read-only)
 - **Fleet view:** clusters across namespaces the user can list (watch via impersonated informers is not possible — use per-request list + server-side short cache keyed by user, 5 s TTL; or SSE polling every 5 s).
+- **Per-instance detail comes only from CR status** (refreshed by the operator every 5 s); the dashboard never calls instance managers, so every byte it shows passed the user's RBAC (ADR-010).
 - **Cluster view:** topology (primary, replicas, lag bars, sync state, lease holder + renew age, timeline), per-instance volume usage (data/WAL, with pressure highlighting) and memory vs limit, conditions, recent events, config hash/pending restart, last failover, archiving status, backups list & recoverability window, certificates expiry.
 - **Live logs:** per instance or merged; filter by category (`access` default), user, database, severity, free-text (client-side over the live window); pause/resume; max 5,000 lines buffered in browser; server enforces max 10 concurrent streams per user and drops lines when the client is slow (shows "N lines dropped").
 - **Access log view:** tabular live feed of normalised access records + counters (connections/min, auth failures/min by user) computed over the live window.

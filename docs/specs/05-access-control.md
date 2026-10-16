@@ -12,7 +12,7 @@
 2. Call IM `/v1/sql/roles/reconcile` with `{name, attributes, memberOf, verifier|null, validUntil, connectionLimit, ensure, ownerRef}`.
 3. IM, in one transaction with `SET LOCAL log_statement = 'none'` and `SET LOCAL pgaudit.log = 'none'` (if loaded):
    - `CREATE ROLE` if missing, else `ALTER ROLE` only for attributes that differ (read from `pg_authid`/`pg_roles`);
-   - password: only if `rolpassword` differs from the verifier **or** the Secret's resourceVersion changed (IM can't compare plaintext; operator tracks `status.passwordSecretVersion`);
+   - password: set only when (a) the Secret's resourceVersion differs from `status.passwordSecretVersion`, or (b) **drift**: SHA-256 of the current `rolpassword` (computed by the IM, never returned in clear) differs from `status.appliedVerifierHash`, i.e. someone changed the password outside pgkeeper. A freshly computed verifier is never compared with `rolpassword` directly — its random salt makes it differ every time. After setting, the operator stores the new verifier's SHA-256 in `status.appliedVerifierHash`;
    - membership: `GRANT`/`REVOKE` for declared `memberOf` diff; memberships not declared and not previously granted by this CR are left alone;
    - `COMMENT ON ROLE x IS 'pgkeeper:<namespace>/<name>:<uid>'` — ownership marker.
 4. If the role exists without our marker → condition `Applied=False reason=RoleExistsUnmanaged` (no takeover unless annotation `pgkeeper.io/adopt: "true"`).
@@ -29,6 +29,7 @@
 | `postgres` | superuser | local peer only; remote only if `spec.superuserAccess: true` (password from `<cluster>-superuser`) |
 | `streaming_replica` | replication | client cert only |
 | `pgkeeper_monitor` | metrics | local peer; member of `pg_monitor` |
+| `pgkeeper_rewind` | `pg_rewind` source connection (03 §5.5); `EXECUTE` on `pg_ls_dir`, `pg_stat_file`, `pg_read_binary_file` only | client cert only (`<cluster>-replication-tls` holds a second key pair, CN `pgkeeper_rewind`) |
 | bootstrap owner (e.g. `app`) | app owner | SCRAM, Secret `<cluster>-app` |
 
 ## 2. Databases (`PostgresDatabase`)
@@ -51,36 +52,38 @@ Rendered by IM, top to bottom (first match wins):
 # 1. operator-reserved
 local   all          postgres,pgkeeper_monitor              peer
 hostssl replication  streaming_replica  <podCIDR|0.0.0.0/0> cert
+hostssl postgres     pgkeeper_rewind    <podCIDR|0.0.0.0/0> cert
+host    all          pgkeeper_rewind    all                 reject
 host    all          streaming_replica  all                 reject
-# 2. user rules from spec.postgresql.hba (validated: no 'trust', no 'password'/'md5' unless allowWeakAuth: true; PG19 deprecates md5)
+# 2. user rules from spec.postgresql.hba (validated: no 'trust' unless spec.postgresql.allowTrust, no 'password'/'md5' unless spec.postgresql.allowWeakAuth; PG19 deprecates md5)
 hostssl all          all                10.0.0.0/8          scram-sha-256
 # 3. default tail
 hostssl all          all                all                 scram-sha-256
 host    all          all                all                 reject     # no non-TLS remote connections
 ```
-- CEL rejects `method: trust` unless the spec has `allowTrust: true` (tests only).
+- CEL rejects `method: trust` unless `spec.postgresql.allowTrust: true` (tests only), and `md5`/`password` unless `spec.postgresql.allowWeakAuth: true` (01 §1.2).
 - Changing HBA = reload, no restart.
 
 ## 5. TLS
 | Mode | Behaviour |
 |---|---|
-| `OperatorManaged` (default) | Per-cluster self-signed CA (ECDSA P-256, 10 y) in `<cluster>-ca`; server cert (SANs: all service names, `*.<cluster>-instances.<ns>.svc`, short names) 90 d; replication client cert; IM API cert; operator, dashboard and instance (`pgkeeper-instance`, for quorum-lease votes, 03 §3.2) client certs signed by the same CA. Rotation at 2/3 lifetime; IM reloads Postgres (`ssl_*` files reread on SIGHUP). |
+| `OperatorManaged` (default) | Per-cluster self-signed CA (ECDSA P-256, 10 y) in `<cluster>-ca`; server cert (SANs: all service names, `*.<cluster>-instances.<ns>.svc`, short names) 90 d; replication client certs (`streaming_replica`, `pgkeeper_rewind`); IM API cert; operator and instance (`pgkeeper-instance`, for quorum-lease votes, 03 §3.2) client certs signed by the same CA. The dashboard has no IM client cert (ADR-010). Rotation at 2/3 lifetime; IM reloads Postgres (`ssl_*` files reread on SIGHUP). |
 | `CertManager` | Operator creates `Certificate` resources against the given issuer; waits for Ready Secrets. |
 | `UserProvided` | Uses given Secrets; operator only validates SANs/expiry and raises `CertificateExpiringSoon` (< 14 d). |
 - `ssl_min_protocol_version = TLSv1.2` (configurable up), `ssl_prefer_server_ciphers = on`.
-- Clients get a ready connection Secret per managed role (`<cluster>-<role>-conn`, opt-in) with `uri`, `host`, `port`, `dbname`, `user`, `password`, `sslrootcert` (CA cert) — for app consumption (`envFrom`).
+- Clients get a ready connection Secret per managed role (`<postgresrole-name>-conn`, opt-in; named after the PostgresRole CR, which is unique per namespace — cluster + role-name concatenation could collide) with `uri`, `host`, `port`, `dbname`, `user`, `password`, `sslrootcert` (CA cert) — for app consumption (`envFrom`).
 
 ## 6. Kubernetes RBAC
 ### 6.1 Operator ServiceAccount
 Cluster-scoped install (watch all namespaces): ClusterRole with:
 - `pgkeeper.io/*` all verbs + status/finalizers
 - pods, pvcs, services, secrets, configmaps, serviceaccounts, events: create/get/list/watch/update/patch/delete
-- roles, rolebindings (to create per-cluster IM roles): create/get/list/watch/update/patch/delete + `bind`/`escalate` **only** on the IM ClusterRole template via `resourceNames`
+- roles, rolebindings (to create per-cluster IM roles): create/get/list/watch/update/patch/delete. No `bind`/`escalate`: the operator already holds every permission it grants the IM, which is what the Kubernetes escalation check requires.
 - leases (coordination.k8s.io): get/list/watch/update/patch/create/delete
 - poddisruptionbudgets, networkpolicies: manage
 - nodes: get/list/watch (failure detection)
 - `cert-manager.io` certificates (optional), `monitoring.coreos.com` podmonitors (optional)
-- Secrets referenced by `spec.notifications.webhookSecretRef` and `--notify-webhook-secret`: get/watch (user-referenced and unlabelled — same cache issue as role/store Secrets, 07 §2 vs §4.3)
+- Secrets referenced by `spec.notifications.webhookSecretRef` and `--notify-webhook-secret`: get/watch — user-referenced Secrets are read uncached and watched metadata-only (07 §4.3, ADR-022)
 Namespace-scoped installs (07 §4) bind the same rules via Roles in each watched namespace.
 
 ### 6.2 Instance ServiceAccount `<cluster>-instance` (per cluster)
@@ -99,8 +102,8 @@ Namespace-scoped installs (07 §4) bind the same rules via Roles in each watched
 
 ### 6.4 Admission policies (ValidatingAdmissionPolicy, shipped as optional manifests)
 - Restrict who may change `PostgresCluster.spec.primary` (pin) — C5.
-- Forbid `PostgresRole.spec.superuser: true` except for a named group.
+- Forbid `PostgresRole.spec.superuser: true` except for a named group. (This is the only control on superuser roles; CEL can't consult the cluster object.)
 - Forbid `deletionPolicy: Delete` on clusters in namespaces labelled `env=prod`.
 
 ## 7. Network
-- Optional per-cluster NetworkPolicy (Phase 26): ingress 5432 from namespaces/pods selected in `spec.networkPolicy.allowedClients`; 5432 replication between instances; 8000 from operator & dashboard namespaces and between instances of the same cluster (quorum-lease votes); 8001 from kubelet (node CIDR — CNI-specific; document); 9187 from monitoring namespace. Egress: DNS, API server, backup store endpoints, instances. The **operator** additionally needs egress to configured notification webhook endpoints (06 §2.5).
+- Optional per-cluster NetworkPolicy (Phase 26): ingress 5432 from namespaces/pods selected in `spec.networkPolicy.allowedClients`; 5432 replication between instances; 8000 from the operator namespace and between instances of the same cluster (quorum-lease votes); 8001 from kubelet (node CIDR — CNI-specific; document); 9187 from monitoring namespace. Egress: DNS, API server, backup store endpoints, instances. The **operator** additionally needs egress to configured notification webhook endpoints (06 §2.5).

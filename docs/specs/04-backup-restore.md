@@ -43,7 +43,9 @@ Common: `WALG_COMPRESSION_METHOD`, `WALG_UPLOAD_CONCURRENCY`, `WALG_PGP_KEY_PATH
 Credentials are mounted as files from Secrets into `/pgkeeper/run/store/` (projected volume) — never as env vars on the container spec (they'd show up in `kubectl describe`).
 
 ## 4. Continuous WAL archiving
-- `archive_mode = on` (not `always`) — only the current primary archives; replicas don't duplicate uploads. On promotion the new primary archives its new timeline + `.history` file.
+- `archive_mode = always` on every instance (ADR-020). Replicas archive the segments they receive, so WAL the old primary streamed but never archived still reaches the store, and a failover leaves no archive gap. On promotion the new primary archives its new timeline, the `.partial` segment and the `.history` file.
+- **Dedup** (ADR-020): before uploading, `wal-archive` checks whether the segment already exists in the store. Same content (size + checksum) → success without upload; different content for the same name → failure `ArchiveConflict` (never overwrite; WAL-G `WALG_PREVENT_WAL_OVERWRITE=true`). The primary normally uploads first; replicas mostly hit the existence check (one HEAD request per segment per replica).
+- Exception: the PITR-bootstrap instance uses `archive_mode = on` until its first restart after promotion (§7), so WAL fetched from the source store is never re-archived.
 - `archive_command = '/pgkeeper/bin/pgkeeper-instance wal-archive %p'`; `archive_timeout = spec.backup.walArchiving.archiveTimeout` (default 60 s) bounds RPO-to-archive for idle systems.
 - `wal-archive` → local IM over unix socket → engine. IM may upload up to N ready segments in parallel (look-ahead in `pg_wal/archive_status/*.ready`) to keep up with bursty write loads; returns success for already-uploaded segments (idempotent).
 - Success/failure counters, last archived/failed WAL & time → `/v1/status` → cluster status + metrics.
@@ -73,9 +75,9 @@ Credentials are mounted as files from Secrets into `/pgkeeper/run/store/` (proje
 1. Operator creates instance 1 only, with `bootstrap.recovery`.
 2. IM resolves backup: given `backupID`, or latest backup whose stop time < target time (`wal-g backup-list --json --detail`).
 3. `wal-g backup-fetch $PGDATA <backupID>` (delta chains handled by WAL-G).
-4. IM writes recovery config: `restore_command = '/pgkeeper/bin/pgkeeper-instance wal-restore %f %p'` (reads from **source** store/serverName), `recovery_target_time|lsn|xid|name|immediate`, `recovery_target_inclusive`, `recovery_target_timeline`, `recovery_target_action = promote`; creates `recovery.signal`.
+4. IM writes recovery config: `restore_command = '/pgkeeper/bin/pgkeeper-instance wal-restore %f %p'` (reads from **source** store/serverName); `archive_command` targets the **new** cluster's own store/serverName from the start, with `archive_mode = on` so nothing is archived during recovery; before starting Postgres the IM writes `pgkeeper/cluster.json` (cluster UID + `system_identifier` from the restored `pg_control`) to the new path, so the I6 ownership check passes for the very first upload; `recovery_target_time|lsn|xid|name|immediate`, `recovery_target_inclusive`, `recovery_target_timeline`, `recovery_target_action = promote`; creates `recovery.signal`.
 5. Starts Postgres; startup probe tolerates long replay (02 §6). Progress (replayed LSN vs target) reported in status (`phase: Restoring`).
-6. On promotion: new timeline; IM switches archive config to the **new** cluster's own store/serverName, writes `pgkeeper/cluster.json` there (I6), runs `CHECKPOINT`, then operator triggers an immediate Full backup (a new cluster isn't PITR-able until its first base backup).
+6. On promotion: new timeline; the archiver uploads the `.history` file and new-timeline segments straight to the new cluster's path (no config switch, so nothing can land in the source path — I6). IM runs `CHECKPOINT`, then the operator triggers an immediate Full backup (a new cluster isn't PITR-able until its first base backup). `archive_mode` becomes `always` at the instance's next restart.
 7. Operator scales up to `spec.instances` (replicas clone from the new primary).
 - Recovery target not reachable (WAL gap / target beyond archive end) → `phase: Failed`, condition `RecoveryTargetUnreachable` with last replayed LSN/time; PGDATA kept for inspection.
 - Restoring across major versions: rejected.

@@ -68,8 +68,8 @@ Differentiation summary: A1 and A2 are gaps in all three. A4–A6 are gaps vs CN
 | # | Issue | Spec | Status |
 |---|---|---|---|
 | C1 | An API server outage fences every primary in the fleet | 03 §3 | **Resolved by ADR-016** (quorum lease, Phase 10b). Until `spec.ha.quorum: Peers` becomes the default, clusters on `KubernetesLease` keep this behaviour |
-| C2 | `archive_mode = on` can leave an archive gap at failover | 04 §4 | Open |
-| C3 | `pg_rewind` cannot connect under the rendered HBA / role privileges | 03 §5.5, 05 §4 | Open |
+| C2 | `archive_mode = on` can leave an archive gap at failover | 04 §4 | **Resolved by ADR-020** (`archive_mode = always` + dedup) |
+| C3 | `pg_rewind` cannot connect under the rendered HBA / role privileges | 03 §5.5, 05 §4 | **Resolved** (dedicated `pgkeeper_rewind` role with cert auth and minimal grants, 05 §1.4) |
 
 ### Sources (2026-10-15)
 - CNPG: `cloudnative-pg.io/docs/devel` (feature overview, container images, instance manager, declarative role management, declarative database management, operator configuration); `cloudnative-pg.io/plugin-barman-cloud/docs/object_stores/`.

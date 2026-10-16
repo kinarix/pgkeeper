@@ -30,6 +30,9 @@ One file per decision. Specs (`docs/specs/`) say *what* the system does; ADRs re
 | [017](017-primary-override.md) | Failover creates a PostgresPrimaryOverride; only a human deletes it | Accepted |
 | [018](018-health-monitoring-notifications.md) | Pull-based health, IM-measured disk, shipped alert rules, optional HA webhook | Accepted |
 | [019](019-crash-handling.md) | Primary crash: restart in place, fail over only on a crash loop (configurable) | Accepted |
+| [020](020-archive-mode-always.md) | `archive_mode = always` with dedup, so failover leaves no archive gap | Accepted |
+| [021](021-shutdown-handoff.md) | SIGTERM on the primary hands over like a switchover | Accepted |
+| [022](022-user-secrets-uncached.md) | User-referenced Secrets: metadata-only watch + uncached reads | Accepted |
 
 ## Template
 ```markdown

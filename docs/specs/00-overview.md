@@ -1,6 +1,6 @@
 # 00 — Overview, Challenged Requirements, Architecture, Decisions
 
-> Project codename: **pgkeeper** (placeholder — rename before Phase 1; the API group `pgkeeper.io` is baked into every CRD).
+> Project codename: **pgkeeper** (placeholder — rename everywhere in one PR before Phase 1 ends; the API group `pgkeeper.io` is baked into every CRD).
 > Status: design. Research snapshot taken **2026-10-15**. Every external version below must be re-verified at the start of the phase that first uses it.
 
 ## 1. Purpose

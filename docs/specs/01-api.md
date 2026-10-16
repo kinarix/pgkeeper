@@ -54,6 +54,8 @@ spec:
       - name: pgaudit
         image: ghcr.io/example/pgaudit-ext:18-17.1@sha256:...
     sharedPreloadLibraries: [pg_stat_statements]
+    allowTrust: false       # permit `method: trust` in hba (tests only)
+    allowWeakAuth: false    # permit `md5` / `password` in hba
 
   bootstrap:                # exactly one of initdb | recovery
     initdb:
@@ -76,6 +78,7 @@ spec:
   ha:
     failoverDelay: 0s
     maxFailoverLag: 64Mi
+    readinessLagCheck: false   # replica /readyz also requires lagBytes ≤ maxFailoverLag (02 §6)
     lease:
       duration: 15s
       renewDeadline: 10s
@@ -148,6 +151,12 @@ spec:
   podDisruptionBudget: {enabled: true}
   deletionPolicy: Retain    # Retain | Delete  (PVCs + generated Secrets)
   imagePolicy: AllowTags    # AllowTags | RequireDigest
+  superuserAccess: false    # true: remote `postgres` login with password from <cluster>-superuser (05 §1.4)
+  networkPolicy:            # Phase 26 (05 §7)
+    enabled: false
+    allowedClients:         # peers allowed to reach 5432
+      - namespaceSelector: {matchLabels: {team: a}}
+        podSelector: {matchLabels: {app: orders-api}}
 ```
 
 ### 1.2 Field rules (CEL unless noted)
@@ -170,6 +179,8 @@ spec:
 | `backup.storeRef` | Store must exist in namespace and be `Ready` — reconcile check. |
 | `tls.mode` | Exactly one matching sub-block. |
 | `deletionPolicy` | Default `Retain`. |
+| `postgresql.hba[].method` | `trust` only if `postgresql.allowTrust`; `md5`/`password` only if `postgresql.allowWeakAuth`. |
+| `networkPolicy.allowedClients` | Required non-empty when `networkPolicy.enabled`. |
 | `monitoring.diskThresholds` | `50 <= warningPercent < criticalPercent <= 99`. |
 | `notifications` | `webhookSecretRef` required when the block is present; Secret must exist in the namespace (reconcile check, `NotificationsMisconfigured`). |
 
@@ -223,6 +234,7 @@ status:
     lastFailedTime: null
   firstRecoverabilityPoint: ...
   lastSuccessfulBackup: {name: orders-scheduled-20261015, time: ...}
+  lastRestoreDrill: {time: ..., backupID: ..., result: Succeeded}   # Phase 21 stretch / 28 (04 §9)
   certificates: {serverExpiry: ..., caExpiry: ...}
   conditions:
     - type: Ready                 # all desired instances ready & primary writable
@@ -248,7 +260,8 @@ Printer columns: Instances, Ready, Primary, Phase, PG, Age.
 | Service | `<cluster>-rw`, `<cluster>-ro`, `<cluster>-r` | selector on `pgkeeper.io/role` |
 | Service (headless) | `<cluster>-instances` | per-pod DNS for replication |
 | Lease | `<cluster>-primary` | coordination.k8s.io/v1 |
-| Secret | `<cluster>-ca`, `<cluster>-server-tls`, `<cluster>-replication-tls`, `<cluster>-im-tls`, `<cluster>-app` (if generated), `<cluster>-superuser` (only if `spec.superuserAccess: true`) | |
+| Secret | `<cluster>-ca`, `<cluster>-server-tls`, `<cluster>-replication-tls` (key pairs for `streaming_replica` and `pgkeeper_rewind`), `<cluster>-im-tls`, `<cluster>-app` (if generated), `<cluster>-superuser` (only if `spec.superuserAccess: true`) | |
+| Secret (per role, opt-in) | `<postgresrole-name>-conn` | owned by the PostgresRole; `connectionSecret.enabled` |
 | ConfigMap | `<cluster>-config` | rendered desired config + hash, read by IMs |
 | ServiceAccount/Role/RoleBinding | `<cluster>-instance` | IM's narrow permissions (05 §6) |
 | PDB | `<cluster>-primary`, `<cluster>-replicas` | |
@@ -275,6 +288,7 @@ status:
   startTime: ...
   completionTime: ...
   writeUnavailableMillis: 1840
+  lossy: false                    # true only if the fast stop had to escalate to immediate (03 §7 step 3)
   message: ""
 ```
 Rules: `spec` immutable (`self == oldSelf` on the whole spec). On completion of a human-requested switchover the operator creates/updates the cluster's PostgresPrimaryOverride to `status.to` (§12); operator-initiated switchovers only update an existing override. Only one non-terminal switchover per cluster — later ones go `Rejected` with reason `AnotherSwitchoverActive`. Rejected if `targetInstance` conflicts with a `Strict` pin, or isn't caught up within `timeout`. Owner reference to the cluster (garbage-collected with it).
@@ -288,7 +302,7 @@ spec:
   clusterRef: {name: orders}
   roleName: reporting             # defaults to metadata.name with '-' → '_'; immutable
   login: true
-  superuser: false                # CEL: must be false unless cluster allows (status check)
+  superuser: false                # controlled by RBAC / the optional ValidatingAdmissionPolicy (05 §6.4); CEL can't consult the cluster
   createDB: false
   createRole: false
   inherit: true
@@ -301,9 +315,11 @@ spec:
   passwordRotation: {generate: true, length: 32}  # operator generates Secret if missing
   ensure: Present                 # Present | Absent
   deletionPolicy: Retain          # Retain | Drop  (Drop runs REASSIGN OWNED BY .. TO <cluster owner>; DROP OWNED; DROP ROLE)
+  connectionSecret: {enabled: false}   # creates <metadata.name>-conn with uri/host/port/dbname/user/password/sslrootcert (05 §5)
 status:
   applied: true
   passwordSecretVersion: "48213"  # resourceVersion of Secret last applied
+  appliedVerifierHash: "sha256:…"  # SHA-256 of the verifier last set; drift check without comparing salted verifiers (05 §1.1)
   conditions: [Ready, Applied, DriftDetected]
 ```
 Reserved names rejected by CEL: `postgres`, `streaming_replica`, `pgkeeper_*`, names starting with `pg_`.
@@ -364,7 +380,7 @@ spec:
   type: S3                         # S3 | GCS | Azure | SFTP | PVC
   s3:
     bucket: pg-backups
-    prefix: team-a/                # final path: <prefix>/<cluster>/<serverName>/
+    prefix: team-a/                # final path: <prefix>/<serverName>/ (serverName defaults to the cluster name; 04 §2)
     region: ap-south-1
     endpoint: ""                   # for S3-compatible (SeaweedFS in tests)
     forcePathStyle: false
@@ -398,11 +414,13 @@ spec:
   method: Full                     # Full | Delta
   target: PreferStandby            # overrides cluster default
   online: true
+  deleteFromStoreOnDelete: false   # true: deleting this CR deletes the backup from the store
 status:
   phase: Completed                 # Pending | Running | Completed | Failed
   instance: orders-2
   backupID: base_000000030000000000000005
   parentBackupID: ""               # for Delta
+  fellBackToFull: false            # Delta requested but taken as Full (no parent on this timeline, or chain ≥ fullEvery)
   startLSN: 0/5000028
   endLSN: 0/5000138
   timeline: 3
@@ -427,6 +445,7 @@ spec:
   suspend: false
   backupsHistoryLimit: 14          # PostgresBackup CRs kept (storage retention is separate)
   concurrencyPolicy: Forbid
+  startingDeadline: 1h             # a run missed while the operator was down still starts if within this
 status:
   lastScheduleTime: ...
   lastSuccessfulTime: ...

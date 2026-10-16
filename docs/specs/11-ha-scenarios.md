@@ -1,6 +1,6 @@
 # 11 — HA Scenarios: What Happens When…
 
-Explanatory companion to **03-ha.md** and **ADR-016/017/018/019**. Those are normative; if this document disagrees with them, they win, and this document is the one to fix. Each scenario lists the setup, the step-by-step behaviour with timings, what clients see, the data-loss bound, and the test that proves it (`F#` = row in ADR-016's fault table).
+Explanatory companion to **03-ha.md** and **ADR-016…021**. Those are normative; if this document disagrees with them, they win, and this document is the one to fix. Each scenario lists the setup, the step-by-step behaviour with timings, what clients see, the data-loss bound, and the test that proves it (`F#` = row in ADR-016's fault table).
 
 Unless stated otherwise:
 - Mode `spec.ha.quorum.mode: Peers` (the target design). Differences in `KubernetesLease` mode (the default until Phase 28) are called out.
@@ -65,7 +65,7 @@ The 2 s safety margin (15 − 10 − 3) is enforced by CEL. A new primary can't 
 |---|---|---|---|---|---|---|
 | 1 | Planned switchover (Graceful) | paused | n/a (planned) | 0 | 0 | 1–5 s |
 | 2 | Rolling update | paused once | n/a | 0 | 0 | 1–5 s |
-| 3 | Node drain of primary | paused once | n/a | 0 | 0 | 1–5 s |
+| 3 | Node drain / primary pod deleted | paused once | n/a (switchover or handoff) | 0 | 0 | 1–5 s |
 | 4 | Postmaster crash | errors during restart | only on crash loop / start timeout (configurable) | 0 (restart) / ≤ lag (escalation) | 0 | seconds; ≤ 30 s after escalation |
 | 5 | Primary pod / node dies | none | yes | ≤ replication lag | 0 | ≤ 30 s |
 | 6 | Primary fully isolated | errors after fence | yes | ≤ ~13 s of writes | 0 | ≤ 30 s |
@@ -117,7 +117,7 @@ sequenceDiagram
 - **Clients:** writes fail or queue from step 5 until `-rw` follows the new primary, typically 1–5 s. With a pooler (`pauseOnSwitchover`, Phase 27), queries queue instead of failing.
 - **Data loss:** none. The target waits for the shutdown LSN.
 - **Abort path:** if B doesn't reach the shutdown LSN within the timeout, the switchover fails, the operator resets `targetPrimary`, and A restarts and re-acquires.
-- **Fast mode:** immediate stop instead of fast. ⚠ Open review issue: after an immediate stop, the `pg_controldata` checkpoint LSN is not end-of-WAL, so "zero lost commits, no rewind" isn't guaranteed for Fast (03 §7 to be corrected).
+- **Fast mode:** skips the drain and `CHECKPOINT` and waits at most `min(10 s, timeout/2)` for the fast stop, so zero loss and no rewind still hold. Only if the fast stop doesn't finish in time does the IM escalate to immediate; the switchover then completes as a failover to the target with `lossy: true` and the old primary goes through the rewind check (03 §7 step 3).
 - **Proof:** Phase 9 — 10 switchovers under ledger load, 0 lost acked writes, p95 ≤ 5 s.
 
 ## 2. Rolling update (image digest, resources, restart-requiring parameters)
@@ -136,11 +136,30 @@ flowchart LR
 - **Clients:** one switchover-sized pause (1–5 s), or the restart time for `Restart`.
 - **Proof:** Phase 13 — minor image bump under load, one switchover, ≤ 5 s, 0 lost writes.
 
-## 3. Node drain of the primary's node
+## 3. Node drain of the primary's node, or primary pod deleted
 
-Intended behaviour: the operator sees the primary pod targeted for eviction, performs a Graceful switchover (§1) first, and then lets the eviction proceed.
-- ⚠ Open review issue: with a `minAvailable: 1` PDB on the single primary pod, the eviction API refuses the eviction, so the `DisruptionTarget` condition never appears. The trigger must change, e.g. to "the primary's node is cordoned" (03 §9 to be corrected).
-- Replica-node drains just respect the `<cluster>-replicas` PDB (maxUnavailable 1).
+**Drain** (`kubectl drain`): the drain cordons the node first; the primary PDB (minAvailable 1, selector `role=primary`) refuses the primary's eviction, so the operator reacts to the **node** instead (03 §9 step 5).
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant K as kubectl drain
+    participant N as Node of orders-1
+    participant OP as Operator
+    participant A as orders-1 (primary)
+    participant B as orders-2
+    K->>N: cordon (unschedulable)
+    K-xA: evict — refused by primary PDB
+    OP->>OP: primary's node unschedulable → operator-initiated Graceful switchover
+    OP->>B: switchover to orders-2 (§1)
+    OP->>A: relabel orders-1 role=replica
+    K->>A: evict retry → allowed (now under replicas PDB)
+```
+- **Clients:** one switchover pause (1–5 s), zero loss. No override is created (operator-initiated, ADR-017).
+
+**Primary pod deleted or SIGTERM'd otherwise** (manual `kubectl delete pod`, node shutdown, eviction not pre-empted): **shutdown handoff** (03 §7.1, ADR-021). The IM fast-stops, records the shutdown LSN and releases with it; the operator promotes a replica that has received up to that LSN within `min(10 s, lease.duration)`. Result: zero lost commits, no rewind. If no replica gets there in time, a normal failover follows (§5).
+
+- **Proof:** Phase 13 (drain → switchover precedes eviction), Phase 9 (delete primary pod under ledger load → 0 lost acked writes).
 
 ## 4. Postmaster crash on the primary (ADR-019)
 
@@ -396,7 +415,7 @@ sequenceDiagram
 - **Normal:** each commit waits for 1 of the 2 standbys. No acknowledged write exists on the primary alone.
 - **Failover:** the operator picks the highest flush LSN, but only if at least `n−1 − k + 1 = 2` replicas reported. Otherwise the replica holding the acknowledged write might be the unreachable one, so it waits with `QuorumUnavailable` (03 §5.3 step 4). Data loss is 0.
 - **Both standbys down:** writes block (durability over availability). `Preferred` would instead shrink the list and set `SynchronousDegraded`.
-- ⚠ Open review issue: users can lower `synchronous_commit` per role, database or session. Those transactions aren't covered by I3, which must be scoped accordingly.
+- **Scope of the guarantee (I3):** commits made with `synchronous_commit = on` or `remote_apply`. Sessions, roles or databases that lower it to `local`/`off` are not covered; the IM reports role/database overrides as condition `SynchronousCommitOverridden` (03 §6).
 
 ## 17. Pinning and the primary override (ADR-017)
 
@@ -444,7 +463,7 @@ flowchart TD
 ```
 - After §1 (switchover): no divergence, so the rewind is a no-op.
 - After §5/§6: divergence is likely (async writes after the fork are discarded).
-- ⚠ Open issue (ADR-015 C3): `pg_rewind` can't connect under the rendered HBA and role privileges yet.
+- pg_rewind connects as the dedicated `pgkeeper_rewind` role (cert auth, read-only file-access grants; 05 §1.4, §4). If the old primary crashed or was fenced, pg_rewind first runs crash recovery on it.
 
 ## 19. Node lost with node-local storage (kind/k3d local-path, bare metal)
 
@@ -502,11 +521,12 @@ flowchart TD
 | §12 Simultaneous loss of primary + replica (n=3) | automatic failover to the survivor | human-confirmed forced promotion |
 | Extra moving parts | none | peer mTLS, `/v1/vote`, voter-set changes |
 
-## Appendix B — Open issues referenced above
-| Where | Issue | Tracked |
+## Appendix B — Previously open issues (all resolved)
+| Where | Issue | Resolution |
 |---|---|---|
-| §1 | Fast switchover can't guarantee zero loss / no rewind | review Tier 1 #6 — to fix in 03 §7 |
-| §3 | Primary eviction never signalled under the PDB | review Tier 1 #3 — to fix in 03 §9 |
-| §16 | `synchronous_commit` overrides vs I3 | review Tier 2 — to scope I3 |
-| §18 | `pg_rewind` connection/privileges | ADR-015 C3 |
-| §5, §6 | `archive_mode=on` can leave archive gaps after failover | ADR-015 C2 |
+| §1 | Fast switchover couldn't guarantee zero loss | Fast uses a fast stop too; immediate only as a flagged escalation (03 §7) |
+| §3 | Primary eviction never signalled under the PDB | Operator reacts to the node being cordoned (03 §9); SIGTERM handoff otherwise (ADR-021) |
+| §4 | Restart vs step down on a postmaster crash | ADR-019 |
+| §5, §6 | Archive gap after failover | ADR-020 |
+| §16 | `synchronous_commit` overrides vs I3 | I3 scoped; `SynchronousCommitOverridden` condition (03 §1, §6) |
+| §18 | `pg_rewind` connection/privileges | `pgkeeper_rewind` role (05 §1.4) |
