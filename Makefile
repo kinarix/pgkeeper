@@ -70,6 +70,14 @@ build: ## Build all binaries into ./bin (operator, instance, dashboard)
 	CGO_ENABLED=0 go build -trimpath -o "$(LOCALBIN)/pgkeeper-instance" ./cmd/instance
 	CGO_ENABLED=0 go build -trimpath -o "$(LOCALBIN)/pgkeeper-dashboard" ./cmd/dashboard
 
+# Linux binaries for images; GOARCH defaults to the host's.
+GOARCH ?= $(shell go env GOARCH)
+WALG = $(LOCALBIN)/wal-g-$(WALG_VERSION)-linux-$(GOARCH)
+
+.PHONY: build-walg
+build-walg: $(LOCALBIN) ## Build static WAL-G from $(WALG_COMMIT)
+	@[ -f "$(WALG)" ] || GOOS=linux GOARCH=$(GOARCH) hack/build-walg.sh $(WALG_COMMIT) $(WALG_VERSION) "$(WALG)"
+
 .PHONY: clean
 clean: ## Remove ./bin, _artifacts, build outputs
 	rm -rf "$(LOCALBIN)" _artifacts
@@ -85,6 +93,9 @@ CONTROLLER_TOOLS_VERSION ?= v0.23.0
 ENVTEST_K8S_VERSION ?= 1.36.2
 GOLANGCI_LINT_VERSION ?= v2.15.0
 KUSTOMIZE_VERSION ?= v5.8.3
+# WAL-G v3.0.9 (lightweight tag) = commit below.
+WALG_VERSION ?= v3.0.9
+WALG_COMMIT ?= 3e493188db28335fb93a45bd680c6ff8fc3028c1
 # setup-envtest follows the controller-runtime version in go.mod.
 ENVTEST_VERSION ?= $(shell go list -m -f '{{.Version}}' sigs.k8s.io/controller-runtime)
 

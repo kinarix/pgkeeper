@@ -3,13 +3,14 @@ id: 08-testing-and-makefile
 title: "08 — Testing Strategy, Local Clusters, Makefile Contract"
 type: spec
 status: design
-version: 0.5.0
+version: 0.6.0
 updated: 2026-10-19
 summary: "Prerequisites, pinned toolchain, test pyramid, local cluster topologies, Makefile targets, Definition of Done."
 phases: [all]
 topics: [testing, makefile, toolchain, local-clusters, dod]
 references: [02-instance-manager, 03-ha, 09-phases, ADR-016]
 changelog:
+  - {version: 0.6.0, date: 2026-10-19, change: "Pin WAL-G commit and record its build flags"}
   - {version: 0.5.0, date: 2026-10-19, change: "Pin verified Go toolchain versions for Phase 0 scaffold"}
   - {version: 0.4.0, date: 2026-10-19, change: "Add YAML metadata front matter"}
   - {version: 0.3.0, date: 2026-10-16, change: "Specify DCO check in Phase 0 CI"}
@@ -39,7 +40,7 @@ Only: `docker` (or compatible engine with ≥ 8 GB RAM / 4 CPU allotted), `go` (
 | helm | `HELM_VERSION` | v3.x / v4 — verify | |
 | chainsaw | `CHAINSAW_VERSION` | v0.2.15+ | |
 | chaos-mesh | `CHAOS_MESH_VERSION` | verify | |
-| WAL-G | `WALG_COMMIT` | pinned commit ≥ v3.0.8 incl. PG15+ base-backup protocol fix | |
+| WAL-G | `WALG_COMMIT` | pinned commit ≥ v3.0.8 incl. PG15+ base-backup protocol fix | v3.0.9 = `3e493188db28335fb93a45bd680c6ff8fc3028c1`; `hack/build-walg.sh`: `CGO_ENABLED=0`, no build tags, needs `GOEXPERIMENT=jsonv2` |
 | SeaweedFS | `SEAWEEDFS_IMAGE` | pinned digest | |
 | fake-gcs-server, Azurite, atmoz/sftp, Dex | `*_IMAGE` | pinned digests | |
 | Postgres images | `PG_IMAGES` | `postgres:16-trixie`, `postgres:17-trixie`, `postgres:18-trixie` (digest-pinned in CI) — verify Debian suite tags at phase start | |
