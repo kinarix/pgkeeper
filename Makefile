@@ -7,6 +7,15 @@ SHELL := /usr/bin/env bash
 .SHELLFLAGS := -eu -o pipefail -c
 .DEFAULT_GOAL := help
 
+IMG_REGISTRY ?= ghcr.io/kinarix
+IMG_TAG ?= $(shell git describe --tags --dirty --always)
+# Image volumes default to pullPolicy Always for :latest, which breaks local
+# registries and pinning (02 §2).
+ifeq ($(IMG_TAG),latest)
+$(error IMG_TAG must not be "latest")
+endif
+TOOLS_IMG ?= $(IMG_REGISTRY)/pgkeeper-tools:$(IMG_TAG)
+
 ##@ General
 
 .PHONY: help
@@ -77,6 +86,20 @@ WALG = $(LOCALBIN)/wal-g-$(WALG_VERSION)-linux-$(GOARCH)
 .PHONY: build-walg
 build-walg: $(LOCALBIN) ## Build static WAL-G from $(WALG_COMMIT)
 	@[ -f "$(WALG)" ] || GOOS=linux GOARCH=$(GOARCH) hack/build-walg.sh $(WALG_COMMIT) $(WALG_VERSION) "$(WALG)"
+
+.PHONY: docker-build
+docker-build: docker-build-tools ## Build images: tools (instance + wal-g)
+
+TOOLS_CONTEXT = $(LOCALBIN)/image-tools-linux-$(GOARCH)
+
+.PHONY: docker-build-tools
+docker-build-tools: build-walg
+	rm -rf "$(TOOLS_CONTEXT)" && mkdir -p "$(TOOLS_CONTEXT)/LICENSES"
+	CGO_ENABLED=0 GOOS=linux GOARCH=$(GOARCH) go build -trimpath -o "$(TOOLS_CONTEXT)/pgkeeper-instance" ./cmd/instance
+	cp "$(WALG)" "$(TOOLS_CONTEXT)/wal-g"
+	hack/collect-licenses.sh "$(TOOLS_CONTEXT)/LICENSES/pgkeeper-instance" . ./cmd/instance GOOS=linux GOARCH=$(GOARCH) CGO_ENABLED=0
+	hack/collect-licenses.sh "$(TOOLS_CONTEXT)/LICENSES/wal-g" "$$(cd "$${TMPDIR:-/tmp}" && go mod download -json github.com/wal-g/wal-g@$(WALG_COMMIT) | sed -n 's/^[[:space:]]*"Dir": "\(.*\)",$$/\1/p')" ./main/pg GOOS=linux GOARCH=$(GOARCH) CGO_ENABLED=0 GOEXPERIMENT=jsonv2
+	docker build --platform linux/$(GOARCH) -f images/tools/Dockerfile -t "$(TOOLS_IMG)" "$(TOOLS_CONTEXT)"
 
 .PHONY: clean
 clean: ## Remove ./bin, _artifacts, build outputs
