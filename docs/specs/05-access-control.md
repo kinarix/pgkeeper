@@ -1,3 +1,21 @@
+---
+id: 05-access-control
+title: "05 — Access Control: Roles, Databases, Grants, HBA, TLS, RBAC"
+type: spec
+status: design
+version: 0.4.0
+updated: 2026-10-19
+summary: "PostgresRole/Database/Grant semantics, pg_hba, TLS modes and rotation, Kubernetes RBAC, network."
+phases: [P3, P5, P6, P10, P14, P15, P16, P17, P26]
+topics: [roles, databases, grants, hba, tls, rbac]
+references: [01-api, 03-ha, 06-observability-dashboard, 07-reconciliation-and-tenancy, ADR-010, ADR-014, ADR-017, ADR-022]
+changelog:
+  - {version: 0.4.0, date: 2026-10-19, change: "Add YAML metadata front matter"}
+  - {version: 0.3.0, date: 2026-10-16, change: "Use pgkeeper.in as the CRD API group"}
+  - {version: 0.2.0, date: 2026-10-16, change: "Resolve open spec review findings"}
+  - {version: 0.1.0, date: 2026-10-16, change: "Add design specs and ADRs"}
+---
+
 # 05 — Access Control: Roles, Databases, Grants, pg_hba, TLS, RBAC
 
 ## 0. Principles

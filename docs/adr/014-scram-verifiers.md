@@ -1,8 +1,21 @@
-# ADR-014 — Role passwords delivered as SCRAM-SHA-256 verifiers computed by the operator
+---
+id: ADR-014
+title: "ADR-014 — Role passwords delivered as SCRAM-SHA-256 verifiers computed by the operator"
+type: adr
+status: accepted
+decided: 2026-10-15
+version: 0.2.0
+updated: 2026-10-19
+phases: [P15]
+topics: [roles, scram]
+references: [05-access-control]
+related: "05 §1.1"
+changelog:
+  - {version: 0.2.0, date: 2026-10-19, change: "Add YAML metadata front matter"}
+  - {version: 0.1.0, date: 2026-10-16, change: "Add design specs and ADRs"}
+---
 
-- Status: Accepted
-- Date: 2026-10-15
-- Related: 05 §1.1
+# ADR-014 — Role passwords delivered as SCRAM-SHA-256 verifiers computed by the operator
 
 ## Context
 Sending plaintext passwords to Postgres risks them appearing in Postgres logs or statement records.

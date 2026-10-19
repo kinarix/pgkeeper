@@ -1,8 +1,21 @@
-# ADR-018 — Pull-based health, IM-measured disk, shipped alert rules, optional HA webhook
+---
+id: ADR-018
+title: "ADR-018 — Pull-based health, IM-measured disk, shipped alert rules, optional HA webhook"
+type: adr
+status: accepted
+decided: 2026-10-16
+version: 0.2.0
+updated: 2026-10-19
+phases: [P5, P23]
+topics: [health, disk, alerts, notifications]
+references: [00-overview, 02-instance-manager, 03-ha, 05-access-control, 06-observability-dashboard, 07-reconciliation-and-tenancy, 11-ha-scenarios, ADR-003, ADR-016]
+related: "00-overview C6; ADR-003 (IM stays PID 1 in the Postgres container); 02 §7–§8, 06 §2, 07 §1, 11 §22"
+changelog:
+  - {version: 0.2.0, date: 2026-10-19, change: "Add YAML metadata front matter"}
+  - {version: 0.1.0, date: 2026-10-16, change: "Add design specs and ADRs"}
+---
 
-- Status: Accepted
-- Date: 2026-10-16
-- Related: 00-overview C6; ADR-003 (IM stays PID 1 in the Postgres container); 02 §7–§8, 06 §2, 07 §1, 11 §22
+# ADR-018 — Pull-based health, IM-measured disk, shipped alert rules, optional HA webhook
 
 ## Context
 - **Heartbeats.** The operator learns instance health by polling the IM. The specs never said so explicitly, or what happens when an instance stops answering.

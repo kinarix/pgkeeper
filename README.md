@@ -1,3 +1,20 @@
+---
+id: readme
+title: "pgkeeper README"
+type: readme
+status: active
+version: 0.3.0
+updated: 2026-10-19
+summary: "Project summary, architecture overview and context for humans."
+phases: [all]
+topics: [overview]
+references: [00-overview, 01-api, 02-instance-manager, 03-ha, 04-backup-restore, 05-access-control, 06-observability-dashboard, 07-reconciliation-and-tenancy, 08-testing-and-makefile, 09-phases, 10-glossary, 11-ha-scenarios, ADR-015, ADR-016, ADR-017, ADR-019, ADR-021]
+changelog:
+  - {version: 0.3.0, date: 2026-10-19, change: "Add YAML metadata front matter"}
+  - {version: 0.2.0, date: 2026-10-16, change: "License under Apache-2.0; contributions via DCO"}
+  - {version: 0.1.0, date: 2026-10-16, change: "Add README with architecture summary and context"}
+---
+
 # pgkeeper
 
 A Kubernetes operator for highly available PostgreSQL on **unmodified official `postgres` images**. You declare clusters, roles, databases, grants and backups as CRDs. pgkeeper runs streaming replication, fails over safely, takes WAL-G backups with point-in-time recovery, and ships a dashboard with live access logs.

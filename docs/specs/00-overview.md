@@ -1,3 +1,22 @@
+---
+id: 00-overview
+title: "00 — Overview, Challenged Requirements, Architecture, Decisions"
+type: spec
+status: design
+version: 0.5.0
+updated: 2026-10-19
+summary: "Requirements R1–R9, challenged requirements C1–C9, goals/non-goals, architecture, decision log, spec index."
+phases: [all]
+topics: [requirements, architecture, decisions]
+references: [01-api, 02-instance-manager, 03-ha, 04-backup-restore, 05-access-control, 06-observability-dashboard, 07-reconciliation-and-tenancy, 08-testing-and-makefile, 09-phases, 10-glossary, 11-ha-scenarios, ADR-001, ADR-015, ADR-016, ADR-017]
+changelog:
+  - {version: 0.5.0, date: 2026-10-19, change: "Add YAML metadata front matter"}
+  - {version: 0.4.0, date: 2026-10-16, change: "Use pgkeeper.in as the CRD API group"}
+  - {version: 0.3.0, date: 2026-10-16, change: "Set project home to kinarix/pgkeeper"}
+  - {version: 0.2.0, date: 2026-10-16, change: "Resolve open spec review findings"}
+  - {version: 0.1.0, date: 2026-10-16, change: "Add design specs and ADRs"}
+---
+
 # 00 — Overview, Challenged Requirements, Architecture, Decisions
 
 > Project: **pgkeeper**, repo `github.com/kinarix/pgkeeper`, images under `ghcr.io/kinarix/`, CRD API group `pgkeeper.in` (baked into every CRD, label and annotation; the `pgkeeper.in` domain should be held by kinarix so no other project can claim the group).

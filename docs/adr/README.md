@@ -1,3 +1,20 @@
+---
+id: adr-index
+title: "Architecture Decision Records — index"
+type: index
+status: active
+version: 0.3.0
+updated: 2026-10-19
+summary: "ADR rules (never renumber, supersede instead), index of all ADRs with status, ADR template."
+phases: [all]
+topics: [adr, index]
+references: []
+changelog:
+  - {version: 0.3.0, date: 2026-10-19, change: "Add YAML metadata front matter"}
+  - {version: 0.2.0, date: 2026-10-16, change: "Resolve open spec review findings"}
+  - {version: 0.1.0, date: 2026-10-16, change: "Add design specs and ADRs"}
+---
+
 # Architecture Decision Records
 
 One file per decision. Specs (`docs/specs/`) say *what* the system does; ADRs record *why* a choice was made and what was rejected. Specs reference decisions as `ADR-NNN`.
@@ -35,13 +52,27 @@ One file per decision. Specs (`docs/specs/`) say *what* the system does; ADRs re
 | [022](022-user-secrets-uncached.md) | User-referenced Secrets: metadata-only watch + uncached reads | Accepted |
 
 ## Template
+Front matter rules: CLAUDE.md working rule 8.
 ```markdown
-# ADR-NNN — <decision in one line>
+---
+id: ADR-NNN
+title: "ADR-NNN — <decision in one line>"
+type: adr
+status: proposed | accepted | superseded
+superseded_by: ADR-MMM          # only when superseded
+decided: YYYY-MM-DD
+supersedes: "ADR-MMM"           # optional; also amends / amended_by
+version: 0.1.0
+updated: YYYY-MM-DD
+phases: [PN, ...]
+topics: [...]
+references: [03-ha, ADR-MMM]
+related: "specs §…, challenged requirement C…"
+changelog:
+  - {version: 0.1.0, date: YYYY-MM-DD, change: "Propose"}
+---
 
-- Status: Proposed | Accepted | Superseded by ADR-MMM
-- Date: YYYY-MM-DD
-- Supersedes: — | ADR-MMM
-- Related: specs §…, challenged requirement C…
+# ADR-NNN — <decision in one line>
 
 ## Context
 ## Decision

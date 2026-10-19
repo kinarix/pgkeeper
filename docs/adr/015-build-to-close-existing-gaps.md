@@ -1,8 +1,22 @@
-# ADR-015 — Build pgkeeper to close gaps in existing Postgres operators
+---
+id: ADR-015
+title: "ADR-015 — Build pgkeeper to close gaps in existing Postgres operators"
+type: adr
+status: accepted
+decided: 2026-10-15
+version: 0.3.0
+updated: 2026-10-19
+phases: [all]
+topics: [gap-ledger, scope]
+references: [00-overview, 03-ha, 04-backup-restore, 05-access-control, 06-observability-dashboard, 07-reconciliation-and-tenancy, 08-testing-and-makefile, 09-phases, ADR-003, ADR-004, ADR-010, ADR-011, ADR-014, ADR-016, ADR-020]
+related: "00-overview C1; ADR-003, ADR-004, ADR-010"
+changelog:
+  - {version: 0.3.0, date: 2026-10-19, change: "Add YAML metadata front matter"}
+  - {version: 0.2.0, date: 2026-10-16, change: "Resolve open spec review findings"}
+  - {version: 0.1.0, date: 2026-10-16, change: "Add design specs and ADRs"}
+---
 
-- Status: Accepted
-- Date: 2026-10-15
-- Related: 00-overview C1; ADR-003, ADR-004, ADR-010
+# ADR-015 — Build pgkeeper to close gaps in existing Postgres operators
 
 ## Context
 Challenged requirement C1 found that CloudNativePG (CNPG 1.30.x, Apache-2.0, CNCF) already covers most of R1–R8. C1 allows a build only if the reason is written down in an ADR; otherwise the default was to adopt CNPG and build only the dashboard and Grant CRD on top.

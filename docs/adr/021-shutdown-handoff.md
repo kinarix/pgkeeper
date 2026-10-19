@@ -1,8 +1,22 @@
-# ADR-021 — SIGTERM on the primary hands over like a switchover
+---
+id: ADR-021
+title: "ADR-021 — SIGTERM on the primary hands over like a switchover"
+type: adr
+status: accepted
+decided: 2026-10-16
+version: 0.3.0
+updated: 2026-10-19
+phases: [P9]
+topics: [shutdown, switchover]
+references: [02-instance-manager, 03-ha, ADR-017, ADR-019]
+related: "02 §5.4, 03 §7, §7.1, §9; ADR-017, ADR-019"
+changelog:
+  - {version: 0.3.0, date: 2026-10-19, change: "Add YAML metadata front matter"}
+  - {version: 0.2.0, date: 2026-10-16, change: "Use pgkeeper.in as the CRD API group"}
+  - {version: 0.1.0, date: 2026-10-16, change: "Resolve open spec review findings"}
+---
 
-- Status: Accepted
-- Date: 2026-10-16
-- Related: 02 §5.4, 03 §7, §7.1, §9; ADR-017, ADR-019
+# ADR-021 — SIGTERM on the primary hands over like a switchover
 
 ## Context
 Previously, SIGTERM on the primary (pod delete, eviction, node shutdown) did a fast stop and released the lease with `release-reason=Shutdown`. The operator then ran an ordinary failover. Under async replication that can lose recent commits and need `pg_rewind`, even though the old primary shut down cleanly and knew exactly where its WAL ended.

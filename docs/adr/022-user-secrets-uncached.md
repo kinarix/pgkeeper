@@ -1,8 +1,21 @@
-# ADR-022 — User-referenced Secrets: metadata-only watch + uncached reads
+---
+id: ADR-022
+title: "ADR-022 — User-referenced Secrets: metadata-only watch + uncached reads"
+type: adr
+status: accepted
+decided: 2026-10-16
+version: 0.2.0
+updated: 2026-10-19
+phases: [P15]
+topics: [secrets, cache]
+references: [05-access-control, 07-reconciliation-and-tenancy]
+related: "07 §2, §4.3; 05 §6.1"
+changelog:
+  - {version: 0.2.0, date: 2026-10-19, change: "Add YAML metadata front matter"}
+  - {version: 0.1.0, date: 2026-10-16, change: "Resolve open spec review findings"}
+---
 
-- Status: Accepted
-- Date: 2026-10-16
-- Related: 07 §2, §4.3; 05 §6.1
+# ADR-022 — User-referenced Secrets: metadata-only watch + uncached reads
 
 ## Context
 The operator caches Secrets only with label `app.kubernetes.io/managed-by=pgkeeper`, to keep memory bounded: operators that cache every Secret have crash-looped in large, Helm-heavy clusters. Some Secrets belong to the user and carry no such label:
