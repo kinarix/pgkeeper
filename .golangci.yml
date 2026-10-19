@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 version: "2"
 run:
   allow-parallel-runners: true
@@ -8,9 +9,13 @@ linters:
     - depguard
     - dupl
     - errcheck
+    - errorlint
+    - forbidigo
     - ginkgolinter
     - goconst
+    - gocritic
     - gocyclo
+    - gosec
     - govet
     - ineffassign
     - lll
@@ -29,7 +34,28 @@ linters:
         forbid-sort-pkg:
           deny:
             - pkg: sort
-              desc: Should be replaced with slices package
+              desc: Use the slices and maps packages instead (CLAUDE.md Go conventions)
+    forbidigo:
+      analyze-types: true
+      forbid:
+        - pattern: ^panic$
+          msg: Return an error; panic is allowed only in main (CLAUDE.md Go conventions)
+        - pattern: ^time\.Now$
+          msg: Use the injected clock.Clock (k8s.io/utils/clock) so tests control time
+    gocritic:
+      disable-all: true
+      enabled-checks:
+        - ruleguard
+      settings:
+        ruleguard:
+          rules: ${base-path}/hack/lint/rules.go
+          failOn: all
+    gosec:
+      # SQL built by string formatting or concatenation is a review blocker:
+      # use pgx.Identifier{...}.Sanitize() and bind parameters.
+      includes:
+        - G201
+        - G202
     revive:
       rules:
         - name: comment-spacings
@@ -47,6 +73,16 @@ linters:
           - dupl
           - lll
         path: internal/*
+      # panic is allowed in main packages and tests.
+      - linters:
+          - forbidigo
+        path: ^cmd/|_test\.go$
+        text: panic
+      # time.Now is banned only where a clock must be injected.
+      - linters:
+          - forbidigo
+        path-except: ^internal/(ha|lease|instance)/
+        text: time\.Now
     paths:
       - third_party$
       - builtin$
