@@ -15,6 +15,7 @@ ifeq ($(IMG_TAG),latest)
 $(error IMG_TAG must not be "latest")
 endif
 TOOLS_IMG ?= $(IMG_REGISTRY)/pgkeeper-tools:$(IMG_TAG)
+IMAGES := pgkeeper-operator pgkeeper-tools pgkeeper-dashboard
 
 CLUSTER_PROVIDER ?= kind
 CLUSTER_NAME ?= pgkeeper
@@ -23,11 +24,16 @@ KIND_REGISTRY_PORT ?= 5001
 K3D_REGISTRY_PORT ?= 5002
 ifeq ($(CLUSTER_PROVIDER),kind)
 KUBE_CONTEXT := kind-$(CLUSTER_NAME)
+LOCAL_REGISTRY := localhost:$(KIND_REGISTRY_PORT)
 else ifeq ($(CLUSTER_PROVIDER),k3d)
 KUBE_CONTEXT := k3d-$(CLUSTER_NAME)
+LOCAL_REGISTRY := localhost:$(K3D_REGISTRY_PORT)
 else
 $(error CLUSTER_PROVIDER must be kind or k3d, got "$(CLUSTER_PROVIDER)")
 endif
+# Registry the deployed cluster pulls from; the local one unless overridden.
+DEPLOY_REGISTRY ?= $(LOCAL_REGISTRY)
+KUBECTL_CTX = "$(KUBECTL)" --context "$(KUBE_CONTEXT)"
 
 # require-local-context refuses to touch a cluster whose current context is
 # not this repo's local one (08 §5.1 rule 7). Targets also pass --context
@@ -117,18 +123,37 @@ build-walg: $(LOCALBIN) ## Build static WAL-G from $(WALG_COMMIT)
 	@[ -f "$(WALG)" ] || GOOS=linux GOARCH=$(GOARCH) hack/build-walg.sh $(WALG_COMMIT) $(WALG_VERSION) "$(WALG)"
 
 .PHONY: docker-build
-docker-build: docker-build-tools ## Build images: tools (instance + wal-g)
+docker-build: docker-build-tools docker-build-operator docker-build-dashboard ## Build images: operator, tools (instance + wal-g), dashboard
 
-TOOLS_CONTEXT = $(LOCALBIN)/image-tools-linux-$(GOARCH)
+IMAGE_CONTEXT = $(LOCALBIN)/image-$(1)-linux-$(GOARCH)
+
+# stage-go-binary builds ./cmd/$(2) as $(3) into image context $(1) and
+# collects the licenses of every module linked into it.
+define stage-go-binary
+CGO_ENABLED=0 GOOS=linux GOARCH=$(GOARCH) go build -trimpath -ldflags "-s -w" -o "$(1)/$(3)" ./cmd/$(2)
+hack/collect-licenses.sh "$(1)/LICENSES/$(3)" . ./cmd/$(2) GOOS=linux GOARCH=$(GOARCH) CGO_ENABLED=0
+endef
 
 .PHONY: docker-build-tools
 docker-build-tools: build-walg
-	rm -rf "$(TOOLS_CONTEXT)" && mkdir -p "$(TOOLS_CONTEXT)/LICENSES"
-	CGO_ENABLED=0 GOOS=linux GOARCH=$(GOARCH) go build -trimpath -o "$(TOOLS_CONTEXT)/pgkeeper-instance" ./cmd/instance
-	cp "$(WALG)" "$(TOOLS_CONTEXT)/wal-g"
-	hack/collect-licenses.sh "$(TOOLS_CONTEXT)/LICENSES/pgkeeper-instance" . ./cmd/instance GOOS=linux GOARCH=$(GOARCH) CGO_ENABLED=0
-	hack/collect-licenses.sh "$(TOOLS_CONTEXT)/LICENSES/wal-g" "$$(cd "$${TMPDIR:-/tmp}" && go mod download -json github.com/wal-g/wal-g@$(WALG_COMMIT) | sed -n 's/^[[:space:]]*"Dir": "\(.*\)",$$/\1/p')" ./main/pg GOOS=linux GOARCH=$(GOARCH) CGO_ENABLED=0 GOEXPERIMENT=jsonv2
-	docker build --platform linux/$(GOARCH) -f images/tools/Dockerfile -t "$(TOOLS_IMG)" "$(TOOLS_CONTEXT)"
+	rm -rf "$(call IMAGE_CONTEXT,tools)" && mkdir -p "$(call IMAGE_CONTEXT,tools)/LICENSES"
+	$(call stage-go-binary,$(call IMAGE_CONTEXT,tools),instance,pgkeeper-instance)
+	cp "$(WALG)" "$(call IMAGE_CONTEXT,tools)/wal-g"
+	hack/collect-licenses.sh "$(call IMAGE_CONTEXT,tools)/LICENSES/wal-g" "$$(cd "$${TMPDIR:-/tmp}" && go mod download -json github.com/wal-g/wal-g@$(WALG_COMMIT) | sed -n 's/^[[:space:]]*"Dir": "\(.*\)",$$/\1/p')" ./main/pg GOOS=linux GOARCH=$(GOARCH) CGO_ENABLED=0 GOEXPERIMENT=jsonv2
+	docker build --platform linux/$(GOARCH) -f images/tools/Dockerfile -t "$(TOOLS_IMG)" "$(call IMAGE_CONTEXT,tools)"
+
+.PHONY: docker-build-operator docker-build-dashboard
+docker-build-operator docker-build-dashboard: docker-build-%:
+	rm -rf "$(call IMAGE_CONTEXT,$*)" && mkdir -p "$(call IMAGE_CONTEXT,$*)/LICENSES"
+	$(call stage-go-binary,$(call IMAGE_CONTEXT,$*),$*,pgkeeper-$*)
+	docker build --platform linux/$(GOARCH) -f images/$*/Dockerfile -t "$(IMG_REGISTRY)/pgkeeper-$*:$(IMG_TAG)" "$(call IMAGE_CONTEXT,$*)"
+
+.PHONY: images-load
+images-load: ## Push images to the local $(CLUSTER_PROVIDER) registry
+	@for img in $(IMAGES); do \
+		docker tag "$(IMG_REGISTRY)/$$img:$(IMG_TAG)" "$(LOCAL_REGISTRY)/$$img:$(IMG_TAG)"; \
+		docker push -q "$(LOCAL_REGISTRY)/$$img:$(IMG_TAG)"; \
+	done
 
 ##@ Local cluster
 
@@ -155,6 +180,65 @@ k3d-down: k3d ## k3d variant of cluster-down (keeps the registry and its cache)
 	@if "$(K3D)" cluster list -o json | grep -q '"name":"$(CLUSTER_NAME)"'; then \
 		"$(K3D)" cluster delete $(CLUSTER_NAME); \
 	else echo "k3d cluster $(CLUSTER_NAME) does not exist"; fi
+
+##@ Deploy
+
+.PHONY: install
+install: manifests kustomize kubectl ## Apply CRDs only
+	$(require-local-context)
+	@out="$$("$(KUSTOMIZE)" build config/crd 2>/dev/null || true)"; \
+	if [ -n "$$out" ]; then echo "$$out" | $(KUBECTL_CTX) apply --server-side -f -; \
+	else echo "No CRDs to install yet."; fi  # TODO(P1): config/crd
+
+.PHONY: uninstall
+uninstall: kustomize kubectl ## Delete CRDs (refuses if any PostgresCluster exists unless FORCE=1)
+	$(require-local-context)
+	@n="$$($(KUBECTL_CTX) get postgresclusters.pgkeeper.in -A --no-headers 2>/dev/null | wc -l | tr -d ' ')"; \
+	if [ "$$n" != 0 ] && [ "$${FORCE:-}" != 1 ]; then \
+		echo "refusing: $$n PostgresCluster(s) exist; delete them or set FORCE=1"; exit 1; fi
+	@out="$$("$(KUSTOMIZE)" build config/crd 2>/dev/null || true)"; \
+	if [ -n "$$out" ]; then echo "$$out" | $(KUBECTL_CTX) delete --ignore-not-found -f -; \
+	else echo "No CRDs to delete."; fi
+
+DEPLOY_DIR = $(CURDIR)/config/_deploy
+
+# render-deploy writes a throwaway overlay of config/$(1) that sets the image
+# names, so deploying never edits tracked files.
+define render-deploy
+rm -rf "$(DEPLOY_DIR)" && mkdir -p "$(DEPLOY_DIR)"
+printf '%s\n' \
+	'apiVersion: kustomize.config.k8s.io/v1beta1' \
+	'kind: Kustomization' \
+	'resources: ["../$(1)"]' \
+	'images:' \
+	'  - name: pgkeeper-operator' \
+	'    newName: $(DEPLOY_REGISTRY)/pgkeeper-operator' \
+	'    newTag: "$(IMG_TAG)"' >"$(DEPLOY_DIR)/kustomization.yaml"
+endef
+
+.PHONY: deploy
+deploy: manifests kustomize kubectl ## Deploy operator with images from IMG_* (dashboard: TODO(P24))
+	$(require-local-context)
+	$(call render-deploy,default)
+	"$(KUSTOMIZE)" build "$(DEPLOY_DIR)" | $(KUBECTL_CTX) apply --server-side -f -
+	$(KUBECTL_CTX) -n pgkeeper-system rollout status deployment/pgkeeper-controller-manager --timeout=3m
+
+.PHONY: deploy-dev
+deploy-dev: manifests kustomize kubectl ## deploy with debug logging, 1 replica
+	$(require-local-context)
+	$(call render-deploy,overlays/dev)
+	"$(KUSTOMIZE)" build "$(DEPLOY_DIR)" | $(KUBECTL_CTX) apply --server-side -f -
+	$(KUBECTL_CTX) -n pgkeeper-system rollout status deployment/pgkeeper-controller-manager --timeout=3m
+
+.PHONY: undeploy
+undeploy: kustomize kubectl ## Remove the operator
+	$(require-local-context)
+	$(call render-deploy,default)
+	"$(KUSTOMIZE)" build "$(DEPLOY_DIR)" | $(KUBECTL_CTX) delete --ignore-not-found -f -
+
+.PHONY: dev
+dev: cluster-up install docker-build images-load deploy-dev ## cluster-up + install + docker-build + images-load + deploy-dev
+	@# TODO(P3): infra-up and samples once there is something to run against them.
 
 .PHONY: clean
 clean: ## Remove ./bin, _artifacts, build outputs

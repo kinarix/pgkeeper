@@ -59,11 +59,11 @@ spec:
           type: RuntimeDefault
       containers:
       - command:
-        - /manager
+        - /pgkeeper-operator
         args:
           - --leader-elect
           - --health-probe-bind-address=:8081
-        image: controller:latest
+        image: pgkeeper-operator
         name: manager
         ports:
         - containerPort: 8081
