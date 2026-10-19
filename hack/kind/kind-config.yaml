@@ -1,0 +1,11 @@
+# SPDX-License-Identifier: Apache-2.0
+# kind topology (08 §4): 1 control-plane + 3 workers; node image set by
+# hack/kind/up.sh from KIND_K8S_VERSION. kind v0.27+ node images already read
+# registry mirrors from /etc/containerd/certs.d, which up.sh populates.
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+nodes:
+  - role: control-plane
+  - role: worker
+  - role: worker
+  - role: worker

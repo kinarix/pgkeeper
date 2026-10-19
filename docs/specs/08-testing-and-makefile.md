@@ -3,13 +3,14 @@ id: 08-testing-and-makefile
 title: "08 — Testing Strategy, Local Clusters, Makefile Contract"
 type: spec
 status: design
-version: 0.6.0
+version: 0.7.0
 updated: 2026-10-19
 summary: "Prerequisites, pinned toolchain, test pyramid, local cluster topologies, Makefile targets, Definition of Done."
 phases: [all]
 topics: [testing, makefile, toolchain, local-clusters, dod]
 references: [02-instance-manager, 03-ha, 09-phases, ADR-016]
 changelog:
+  - {version: 0.7.0, date: 2026-10-19, change: "Pin kind, k3d, k3s, kubectl and registry; describe localhost registry names"}
   - {version: 0.6.0, date: 2026-10-19, change: "Pin WAL-G commit and record its build flags"}
   - {version: 0.5.0, date: 2026-10-19, change: "Pin verified Go toolchain versions for Phase 0 scaffold"}
   - {version: 0.4.0, date: 2026-10-19, change: "Add YAML metadata front matter"}
@@ -32,15 +33,16 @@ Only: `docker` (or compatible engine with ≥ 8 GB RAM / 4 CPU allotted), `go` (
 | kubebuilder scaffold | — | v4.16 (scaffold once, then hand-maintained) | v4.16.0 |
 | setup-envtest / envtest K8s | `ENVTEST_K8S_VERSION` | 1.36.x | 1.36.2 |
 | golangci-lint | `GOLANGCI_LINT_VERSION` | v2.12+ | v2.15.0 |
-| kind | `KIND_VERSION` | v0.33.x (default node 1.37.0; 1.34–1.36 images available) | |
-| k3d | `K3D_VERSION` | latest v5.x — verify | |
-| k3s image | `K3S_IMAGE` | `rancher/k3s:v1.36.x-k3s1` — verify | |
-| kubectl | `KUBECTL_VERSION` | matches newest node | |
+| kind | `KIND_VERSION` | v0.33.x (default node 1.37.0; 1.34–1.36 images available) | v0.33.0; `KIND_NODE_IMAGE_1.34..1.37` = v1.34.11 / v1.35.8 / v1.36.4 / v1.37.0, digest-pinned from the release notes |
+| k3d | `K3D_VERSION` | latest v5.x — verify | v5.9.0 |
+| k3s image | `K3S_IMAGE` | `rancher/k3s:v1.36.x-k3s1` — verify | `rancher/k3s:v1.36.5-k3s1@sha256:057cfd5a…` |
+| kubectl | `KUBECTL_VERSION` | matches newest node | v1.37.1 (sha256-checked download) |
 | kustomize | `KUSTOMIZE_VERSION` | v5.x | v5.8.3 |
 | helm | `HELM_VERSION` | v3.x / v4 — verify | |
 | chainsaw | `CHAINSAW_VERSION` | v0.2.15+ | |
 | chaos-mesh | `CHAOS_MESH_VERSION` | verify | |
 | WAL-G | `WALG_COMMIT` | pinned commit ≥ v3.0.8 incl. PG15+ base-backup protocol fix | v3.0.9 = `3e493188db28335fb93a45bd680c6ff8fc3028c1`; `hack/build-walg.sh`: `CGO_ENABLED=0`, no build tags, needs `GOEXPERIMENT=jsonv2` |
+| Local registry | `REGISTRY_IMAGE` | — | `registry:3.1.2@sha256:ddf75434…` |
 | SeaweedFS | `SEAWEEDFS_IMAGE` | pinned digest | |
 | fake-gcs-server, Azurite, atmoz/sftp, Dex | `*_IMAGE` | pinned digests | |
 | Postgres images | `PG_IMAGES` | `postgres:16-trixie`, `postgres:17-trixie`, `postgres:18-trixie` (digest-pinned in CI) — verify Debian suite tags at phase start | |
@@ -75,13 +77,13 @@ Install previous operator release → create clusters → upgrade operator → v
 ## 4. Local cluster topologies
 ### kind (`hack/kind/kind-config.yaml`)
 - 1 control-plane + 3 workers (anti-affinity needs ≥ 3 nodes), node image digest-pinned via `KIND_NODE_IMAGE`.
-- Local registry `kind-registry:5001` connected to the kind network (images pushed instead of `kind load` for speed; `kind load` path kept as fallback).
+- Local registry container `kind-registry`, published on `localhost:5001` and connected to the kind network; each node maps `localhost:5001` to it via `/etc/containerd/certs.d`, so the same image name works on the host and in pods (images pushed instead of `kind load` for speed; `kind load` path kept as fallback).
 - Default CNI kindnet (supports NetworkPolicy in recent kind) — partition tests use Chaos Mesh, not NetworkPolicy.
 - StorageClass: kind's `standard` (local-path, RWO, node-bound — exercises 03 §11).
 - Matrix variable `KIND_K8S_VERSION ∈ {1.34, 1.35, 1.36, 1.37}`; 1.34 exercises the init-copy tools fallback (image volumes off by default there).
 
 ### k3d / k3s (`hack/k3d/k3d-config.yaml`)
-- 1 server + 3 agents, k3s image pinned, Traefik disabled, built-in registry `k3d-registry.localhost:5002`.
+- 1 server + 3 agents, k3s image pinned, Traefik disabled, built-in registry `k3d-registry.localhost` published on `localhost:5002`; `registries.yaml` mirrors `localhost:5002` to it, so images use the same `localhost:5002/...` name on the host and in pods (no `/etc/hosts` entry needed on macOS).
 - k3s ships flannel + kube-router NetworkPolicy and local-path provisioner.
 - Purpose: second distro (different kubelet/containerd config) and resource-constrained edge-like environment.
 - Optional NFS provisioner (`make k3d-nfs`) for RWX PVC backup-store tests.
