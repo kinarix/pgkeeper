@@ -1,0 +1,16 @@
+# SPDX-License-Identifier: Apache-2.0
+# k3d topology (08 §4): 1 server + 3 agents, Traefik disabled, built-in
+# registry. Name, k3s image and registry port are set by hack/k3d/up.sh.
+apiVersion: k3d.io/v1alpha5
+kind: Simple
+servers: 1
+agents: 3
+options:
+  k3s:
+    extraArgs:
+      - arg: --disable=traefik
+        nodeFilters:
+          - server:*
+  kubeconfig:
+    updateDefaultKubeconfig: true
+    switchCurrentContext: true
