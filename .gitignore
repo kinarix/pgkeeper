@@ -12,3 +12,4 @@ go.work.sum
 *~
 # Kubeconfig might contain secrets
 *.kubeconfig
+/config/_deploy/
