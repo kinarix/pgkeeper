@@ -3,13 +3,14 @@ id: 02-instance-manager
 title: "02 — Instance Manager (pgkeeper-instance)"
 type: spec
 status: design
-version: 0.6.0
+version: 0.7.0
 updated: 2026-10-19
 summary: "IM as PID 1: delivery, bootstrap, config render, supervision, probes (8001), mTLS API (8000), metrics, logging."
 phases: [P0, P2, P3, P4, P5, P6, P7, P8, P9, P10, P10b, P14, P18, P22, P23]
 topics: [instance-manager, bootstrap, probes, im-api, supervisor]
 references: [00-overview, 03-ha, 04-backup-restore, 05-access-control, 06-observability-dashboard, 10-glossary, ADR-006, ADR-010, ADR-018, ADR-019, ADR-021]
 changelog:
+  - {version: 0.7.0, date: 2026-10-19, change: "Pin verified image-volume node minimums; describe license collection"}
   - {version: 0.6.0, date: 2026-10-19, change: "Add YAML metadata front matter"}
   - {version: 0.5.0, date: 2026-10-16, change: "License under Apache-2.0; contributions via DCO"}
   - {version: 0.4.0, date: 2026-10-16, change: "Use pgkeeper.in as the CRD API group"}
@@ -42,9 +43,16 @@ volumes:
   - name: pgdata            {persistentVolumeClaim: {claimName: <pod>}}
   - name: pgwal             {persistentVolumeClaim: {claimName: <pod>-wal}}   # optional
 ```
-- Image-volume support is a **node** capability (kubelet feature gate + container runtime), not an API-server one, so a dry-run create proves nothing. The operator decides per pod: `image-volume` only if every node the pod may be scheduled on reports kubelet ≥ 1.35 and a runtime version known to support image volumes (`node.status.nodeInfo.kubeletVersion`, `containerRuntimeVersion`; minimum runtime versions, e.g. containerd 2.1 / CRI-O 1.31, **verified and pinned at Phase 0**), otherwise `init-copy`. Re-evaluated on node changes; existing pods are not restarted for it. Override with `--tools-delivery=image-volume|init-copy|auto` (default auto). If an image-volume pod fails with a volume mount error anyway, the operator recreates it with `init-copy` and records event `ToolsDeliveryFallback`.
+- Image-volume support is a **node** capability (kubelet feature gate + container runtime), not an API-server one, so a dry-run create proves nothing. The operator decides per pod: `image-volume` only if every node the pod may be scheduled on reports kubelet ≥ 1.35 and a runtime version known to support image volumes (`node.status.nodeInfo.kubeletVersion`, `containerRuntimeVersion`; minimum versions below), otherwise `init-copy`. Re-evaluated on node changes; existing pods are not restarted for it. Override with `--tools-delivery=image-volume|init-copy|auto` (default auto). If an image-volume pod fails with a volume mount error anyway, the operator recreates it with `init-copy` and records event `ToolsDeliveryFallback`.
+  | Component | Minimum | Why (verified 2026-10-19) |
+  |---|---|---|
+  | kubelet | 1.35 | `ImageVolume` gate: alpha 1.31, beta off 1.33, **beta on 1.35**, GA and locked on 1.36 (`pkg/features/kube_features.go`) |
+  | containerd | 2.1.0 | release notes: "Add OCI/Image Volume Source support" (containerd#10579) |
+  | CRI-O | 1.31.0 | Kubernetes 1.31 image-volume blog (2024-08-16): "like CRI-O ≥ v1.31" |
+
+  kind v0.33.0 nodes ship containerd 2.3.4 and k3s v1.36.5 ships containerd 2.3.4-k3s, so on kind the kubelet version decides (1.34 → `init-copy`, 1.36 → `image-volume`).
 - `init-copy` fallback: init container from the same tools image runs `/pgkeeper-instance install --to /pgkeeper/bin`, which copies itself and `/wal-g` into an emptyDir and verifies their checksums. (The tools image is `FROM scratch`: there is no shell and no `cp`.)
-- Tools image: `FROM scratch`, contains `/pgkeeper-instance`, `/wal-g`, `/LICENSES/` (pgkeeper's Apache-2.0 LICENSE + NOTICE, WAL-G's license and NOTICE, and licenses of statically linked Go modules, generated at build time). Both binaries `CGO_ENABLED=0`, `-trimpath`, static. WAL-G built from a pinned commit with build tags that avoid cgo (no brotli/libsodium/lzo); compression limited to lz4/zstd/lzma (ADR-006). Image is signed and gets an SBOM (Phase 28).
+- Tools image: `FROM scratch`, contains `/pgkeeper-instance`, `/wal-g`, `/LICENSES/` (pgkeeper's Apache-2.0 LICENSE + NOTICE, WAL-G's license and NOTICE, and licenses of statically linked Go modules, collected at build time by `hack/collect-licenses.sh` from `go list -deps`; the build fails if a module has no license file). Both binaries `CGO_ENABLED=0`, `-trimpath`, static. WAL-G built from a pinned commit with build tags that avoid cgo (no brotli/libsodium/lzo); compression limited to lz4/zstd/lzma (ADR-006). Image is signed and gets an SBOM (Phase 28).
 - Mounted at `/pgkeeper/bin` (read-only). IM writes nothing there.
 
 ## 3. Filesystem layout (all PG versions)
