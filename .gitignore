@@ -1,3 +1,14 @@
 .DS_Store
 /bin/
 /_artifacts/
+/dist/
+*.test
+*.out
+go.work
+go.work.sum
+.idea
+.vscode
+*.swp
+*~
+# Kubeconfig might contain secrets
+*.kubeconfig
