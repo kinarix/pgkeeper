@@ -92,6 +92,12 @@ verify: generate manifests fmt ## generate+manifests+fmt then fail if git diff i
 		exit 1; \
 	fi
 
+DCO_BASE ?= origin/main
+
+.PHONY: dco
+dco: ## Check every commit in $(DCO_BASE)..HEAD has a DCO sign-off by its author
+	@hack/dco.sh "$(DCO_BASE)"
+
 ##@ Test
 
 .PHONY: test

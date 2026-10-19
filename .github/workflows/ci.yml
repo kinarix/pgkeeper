@@ -1,0 +1,31 @@
+# SPDX-License-Identifier: Apache-2.0
+# CI uses the same make targets as developers (08 §5.1 rule 6, §5.3).
+name: ci
+on:
+  pull_request:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  dco:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      # The PR head, not the synthetic merge commit, with full history.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+      - run: make dco DCO_BASE=${{ github.event.pull_request.base.sha }}
+  verify-lint-test:
+    needs: [dco]
+    if: always() && (needs.dco.result == 'success' || needs.dco.result == 'skipped')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+      - run: make verify lint test
+      # TODO(P2): test-im. TODO(P3): e2e-smoke on kind 1.36 / PG18 and accept-p<N>.
