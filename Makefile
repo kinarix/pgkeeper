@@ -246,6 +246,29 @@ undeploy: kustomize kubectl ## Remove the operator
 dev: cluster-up install docker-build images-load deploy-dev ## cluster-up + install + docker-build + images-load + deploy-dev
 	@# TODO(P3): infra-up and samples once there is something to run against them.
 
+##@ E2E
+
+# TODO(P3): chainsaw + Go e2e behind these stubs.
+.PHONY: e2e e2e-smoke e2e-ha e2e-backup e2e-access e2e-dashboard e2e-chaos e2e-matrix
+e2e: ## All chainsaw + Go e2e on current cluster (stub)
+e2e-smoke: ## < 5 min subset: create, connect, scale, delete (stub)
+e2e-ha: ## Switchover, failover, pinning, rolling update (stub)
+e2e-backup: ## Archiving, full/delta, schedules, retention, PITR (stub)
+e2e-access: ## Roles, databases, grants, HBA, TLS (stub)
+e2e-dashboard: ## API-level dashboard tests + Playwright smoke (stub)
+e2e-chaos: ## Ledger harness under Chaos Mesh faults (stub)
+e2e-matrix: ## Loop KIND_K8S_VERSION x PG_VERSIONS (stub)
+e2e e2e-smoke e2e-ha e2e-backup e2e-access e2e-dashboard e2e-chaos e2e-matrix:
+	@echo "$@: not yet implemented"
+
+.PHONY: accept-p0
+accept-p0: ## Acceptance suite for phase 0 (creates and deletes local clusters)
+	hack/accept/p0.sh
+
+# print-VAR prints a make variable, for scripts.
+print-%:
+	@echo '$($*)'
+
 .PHONY: clean
 clean: ## Remove ./bin, _artifacts, build outputs
 	rm -rf "$(LOCALBIN)" _artifacts
