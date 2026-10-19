@@ -1,3 +1,21 @@
+---
+id: 01-api
+title: "01 — API (CRDs)"
+type: spec
+status: design
+version: 0.4.0
+updated: 2026-10-19
+summary: "All CRD types, fields, defaults, CEL rules, status and generated object names (§1.4)."
+phases: [P1, P3, P4, P5, P6, P7, P9, P10, P10b, P11, P12, P13, P14, P15, P16, P17, P18, P19, P20, P21, P22, P23, P26, P27]
+topics: [crd, api, cel, status]
+references: [02-instance-manager, 03-ha, 04-backup-restore, 05-access-control, 06-observability-dashboard, ADR-008, ADR-009, ADR-016, ADR-017, ADR-018, ADR-019]
+changelog:
+  - {version: 0.4.0, date: 2026-10-19, change: "Add YAML metadata front matter"}
+  - {version: 0.3.0, date: 2026-10-16, change: "Use pgkeeper.in as the CRD API group"}
+  - {version: 0.2.0, date: 2026-10-16, change: "Resolve open spec review findings"}
+  - {version: 0.1.0, date: 2026-10-16, change: "Add design specs and ADRs"}
+---
+
 # 01 — API (CRDs)
 
 API group `pgkeeper.in`, version `v1alpha1` until Phase 28. All kinds are **namespaced**. Validation is OpenAPI + CEL (`x-kubernetes-validations`); no admission webhook (ADR-008).

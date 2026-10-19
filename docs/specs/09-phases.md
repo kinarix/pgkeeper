@@ -1,3 +1,23 @@
+---
+id: 09-phases
+title: "09 — Implementation Phases"
+type: spec
+status: design
+version: 0.6.0
+updated: 2026-10-19
+summary: "Phase status table and per-phase goal, scope and acceptance (the contract for current work)."
+phases: [all]
+topics: [phases, plan, acceptance]
+references: [02-instance-manager, 03-ha, 04-backup-restore, 05-access-control, 06-observability-dashboard, 08-testing-and-makefile, ADR-010, ADR-016, ADR-017, ADR-018, ADR-019, ADR-020, ADR-021, ADR-022]
+changelog:
+  - {version: 0.6.0, date: 2026-10-19, change: "Add YAML metadata front matter"}
+  - {version: 0.5.0, date: 2026-10-16, change: "Specify DCO check in Phase 0 CI"}
+  - {version: 0.4.0, date: 2026-10-16, change: "Use pgkeeper.in as the CRD API group"}
+  - {version: 0.3.0, date: 2026-10-16, change: "Set project home to kinarix/pgkeeper"}
+  - {version: 0.2.0, date: 2026-10-16, change: "Resolve open spec review findings"}
+  - {version: 0.1.0, date: 2026-10-16, change: "Add design specs and ADRs"}
+---
+
 # 09 — Implementation Phases
 
 Rules

@@ -1,3 +1,20 @@
+---
+id: 10-glossary
+title: "10 — Glossary"
+type: spec
+status: design
+version: 0.3.0
+updated: 2026-10-19
+summary: "Definitions of terms with intuition and examples; read only for an unfamiliar term."
+phases: [all]
+topics: [glossary]
+references: [ADR-016, ADR-019, ADR-021]
+changelog:
+  - {version: 0.3.0, date: 2026-10-19, change: "Add YAML metadata front matter"}
+  - {version: 0.2.0, date: 2026-10-16, change: "Resolve open spec review findings"}
+  - {version: 0.1.0, date: 2026-10-16, change: "Add design specs and ADRs"}
+---
+
 # 10 — Glossary (with intuition and examples)
 
 **WAL (Write-Ahead Log)** — Postgres writes every change to a sequential log *before* changing data files. *Intuition:* a bank's journal — if the ledger pages burn, you rebuild them by replaying the journal. *Example:* `INSERT` → WAL record flushed → commit acknowledged → data page updated later at checkpoint.

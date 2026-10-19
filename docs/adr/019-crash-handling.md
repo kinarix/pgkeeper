@@ -1,8 +1,21 @@
-# ADR-019 — Primary crash: restart in place, fail over only on a crash loop (configurable)
+---
+id: ADR-019
+title: "ADR-019 — Primary crash: restart in place, fail over only on a crash loop (configurable)"
+type: adr
+status: accepted
+decided: 2026-10-16
+version: 0.2.0
+updated: 2026-10-19
+phases: [P10]
+topics: [crash-handling, failover]
+references: [01-api, 02-instance-manager, 03-ha, 08-testing-and-makefile, 11-ha-scenarios, ADR-017]
+related: "02 §5.4, 03 §3.3, §3.7, §5.1, 11 §4, §22"
+changelog:
+  - {version: 0.2.0, date: 2026-10-19, change: "Add YAML metadata front matter"}
+  - {version: 0.1.0, date: 2026-10-16, change: "Add design specs and ADRs"}
+---
 
-- Status: Accepted
-- Date: 2026-10-16
-- Related: 02 §5.4, 03 §3.3, §3.7, §5.1, 11 §4, §22
+# ADR-019 — Primary crash: restart in place, fail over only on a crash loop (configurable)
 
 ## Context
 The specs contradicted each other:

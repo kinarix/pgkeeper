@@ -1,8 +1,21 @@
-# ADR-020 — `archive_mode = always` with dedup, so failover leaves no archive gap
+---
+id: ADR-020
+title: "ADR-020 — `archive_mode = always` with dedup, so failover leaves no archive gap"
+type: adr
+status: accepted
+decided: 2026-10-16
+version: 0.2.0
+updated: 2026-10-19
+phases: [P18]
+topics: [archiving]
+references: [04-backup-restore, ADR-015]
+related: "04 §4, §7; ADR-015 ledger row C2; invariant I6"
+changelog:
+  - {version: 0.2.0, date: 2026-10-19, change: "Add YAML metadata front matter"}
+  - {version: 0.1.0, date: 2026-10-16, change: "Resolve open spec review findings"}
+---
 
-- Status: Accepted
-- Date: 2026-10-16
-- Related: 04 §4, §7; ADR-015 ledger row C2; invariant I6
+# ADR-020 — `archive_mode = always` with dedup, so failover leaves no archive gap
 
 ## Context
 With `archive_mode = on` only the primary archives. The PostgreSQL docs state that a promoted standby archives only the WAL it generates after promotion. Any segment the old primary had streamed but not yet archived when it died is missing from the archive. A point-in-time restore across that failover then hits a WAL gap (Phase 21 "restore across a failover timeline switch").

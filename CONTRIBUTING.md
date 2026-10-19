@@ -1,3 +1,20 @@
+---
+id: contributing
+title: "Contributing to pgkeeper"
+type: guide
+status: active
+version: 0.3.0
+updated: 2026-10-19
+summary: "How to contribute: specs/ADRs first, DCO sign-off, commit and PR expectations."
+phases: [all]
+topics: [contributing, dco]
+references: [03-ha, 08-testing-and-makefile, 09-phases]
+changelog:
+  - {version: 0.3.0, date: 2026-10-19, change: "Add YAML metadata front matter"}
+  - {version: 0.2.0, date: 2026-10-16, change: "Specify DCO check in Phase 0 CI"}
+  - {version: 0.1.0, date: 2026-10-16, change: "License under Apache-2.0; contributions via DCO"}
+---
+
 # Contributing to pgkeeper
 
 Thanks for your interest! pgkeeper is in its design phase. Specs and ADRs are where to start.

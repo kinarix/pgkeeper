@@ -1,3 +1,21 @@
+---
+id: 06-observability-dashboard
+title: "06 — Observability and Dashboard"
+type: spec
+status: design
+version: 0.4.0
+updated: 2026-10-19
+summary: "Metrics and alerts, log categorisation and access logs, dashboard architecture, features and security."
+phases: [P5, P22, P23, P24, P25]
+topics: [metrics, alerts, logging, dashboard]
+references: [03-ha, ADR-010, ADR-011, ADR-018]
+changelog:
+  - {version: 0.4.0, date: 2026-10-19, change: "Add YAML metadata front matter"}
+  - {version: 0.3.0, date: 2026-10-16, change: "Use pgkeeper.in as the CRD API group"}
+  - {version: 0.2.0, date: 2026-10-16, change: "Resolve open spec review findings"}
+  - {version: 0.1.0, date: 2026-10-16, change: "Add design specs and ADRs"}
+---
+
 # 06 — Observability and Dashboard
 
 ## 1. Scope (C6)

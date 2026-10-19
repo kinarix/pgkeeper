@@ -1,3 +1,22 @@
+---
+id: claude-md
+title: "CLAUDE.md — agent instructions"
+type: agent-guide
+status: active
+version: 0.5.0
+updated: 2026-10-19
+summary: "Working rules, safety invariants short form, layout, conventions and which spec to read for each task."
+phases: [all]
+topics: [workflow, conventions, invariants]
+references: [00-overview, 01-api, 02-instance-manager, 03-ha, 04-backup-restore, 05-access-control, 06-observability-dashboard, 07-reconciliation-and-tenancy, 08-testing-and-makefile, 09-phases, 10-glossary, 11-ha-scenarios, ADR-016, ADR-017]
+changelog:
+  - {version: 0.5.0, date: 2026-10-19, change: "Add YAML metadata front matter"}
+  - {version: 0.4.0, date: 2026-10-16, change: "License under Apache-2.0; contributions via DCO"}
+  - {version: 0.3.0, date: 2026-10-16, change: "Use pgkeeper.in as the CRD API group"}
+  - {version: 0.2.0, date: 2026-10-16, change: "Set project home to kinarix/pgkeeper"}
+  - {version: 0.1.0, date: 2026-10-16, change: "Add design specs and ADRs"}
+---
+
 # CLAUDE.md — pgkeeper
 
 Kubernetes operator for highly available PostgreSQL on **unmodified official `postgres` images**: CRD-driven clusters, streaming replication, lease-based safe failover, switchover/pinning, WAL-G backups with PITR, role/database/grant CRDs, metrics, and a dashboard with live access logs. Go, kubebuilder/controller-runtime. Tested locally on kind and k3d.
@@ -5,6 +24,9 @@ Kubernetes operator for highly available PostgreSQL on **unmodified official `po
 > Repo `github.com/kinarix/pgkeeper` (Go module path), images `ghcr.io/kinarix/pgkeeper-{operator,tools,dashboard}`, CRD API group `pgkeeper.in`. These names are final; the API group is baked into every CRD, label and annotation.
 
 ## Read first
+Load only what the task needs. Scan front matter first, then read the body of a doc only when its `phases` include the current phase (or `all`) or its `topics` match the task, and within it only the sections you need:
+`awk 'FNR==1{n=0} /^---$/{n++;next} n==1&&/^(id|summary|phases|topics):/{print FILENAME": "$0}' docs/specs/*.md docs/adr/*.md`
+
 | When | Read |
 |---|---|
 | Starting any work | `docs/specs/09-phases.md` (find the current phase; its scope and acceptance are your contract) |
@@ -30,6 +52,8 @@ Kubernetes operator for highly available PostgreSQL on **unmodified official `po
 5. **Never weaken an invariant (03 §1) to make a test pass.** If an invariant seems wrong, stop and raise it.
 6. **Verify external facts** (tool versions, WAL-G flags, Postgres GUC names/values per major) against upstream docs at the start of the phase that needs them; pin what you verified in the Makefile/go.mod and note it in the PR.
 7. Ask before: adding a new dependency with cgo, adding a new CRD or CRD field not in 01-api.md, changing generated object names (01 §1.4), changing default timings in `ha`.
+
+8. **Keep Markdown front matter current.** Every `.md` file starts with a YAML block (`---` on line 1) in this field order: `id, title, type, status, [superseded_by, status_note, decided, supersedes, amends, amended_by], version, updated, summary, phases, topics, references, [related], changelog`. `phases`/`topics`/`references` are one-line flow lists; `references` holds ids (`03-ha`, `ADR-016`) of docs the body cites. Every edit bumps `version` (minor; patch for typos), sets `updated`, and prepends `{version, date, change}` to `changelog`. ADRs keep status/date/related here, not as body bullets. Not applied to LICENSE, NOTICE, `.gitignore` or source files (SPDX header stays first). TODO(P0): check in `make verify`.
 
 ## Safety invariants (short form — full table in 03 §1)
 - At most one writable primary: Postgres runs read-write only while its IM holds a **sustain quorum** of the quorum lease — the `<cluster>-primary` Lease **or** enough peer votes (03 §3, ADR-016); on doubt the IM fences with **immediate** stop.

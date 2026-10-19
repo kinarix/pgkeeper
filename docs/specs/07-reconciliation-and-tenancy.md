@@ -1,3 +1,21 @@
+---
+id: 07-reconciliation-and-tenancy
+title: "07 — Reconciliation, Drift, Lifecycle, Multi-Namespace Tenancy, Operator HA"
+type: spec
+status: design
+version: 0.4.0
+updated: 2026-10-19
+summary: "Reconcile loop rules, watched objects and drift repair, deletion lifecycle, watch scopes, operator HA, flags."
+phases: [P1, P3, P4, P5, P15, P26]
+topics: [reconcile, drift, lifecycle, tenancy, operator-ha]
+references: [03-ha, 06-observability-dashboard, ADR-004, ADR-018, ADR-022]
+changelog:
+  - {version: 0.4.0, date: 2026-10-19, change: "Add YAML metadata front matter"}
+  - {version: 0.3.0, date: 2026-10-16, change: "Use pgkeeper.in as the CRD API group"}
+  - {version: 0.2.0, date: 2026-10-16, change: "Resolve open spec review findings"}
+  - {version: 0.1.0, date: 2026-10-16, change: "Add design specs and ADRs"}
+---
+
 # 07 — Reconciliation, Drift, Lifecycle, Multi-Namespace Tenancy, Operator HA
 
 ## 1. Reconcile loop rules (all controllers)

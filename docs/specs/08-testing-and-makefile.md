@@ -1,3 +1,21 @@
+---
+id: 08-testing-and-makefile
+title: "08 — Testing Strategy, Local Clusters, Makefile Contract"
+type: spec
+status: design
+version: 0.4.0
+updated: 2026-10-19
+summary: "Prerequisites, pinned toolchain, test pyramid, local cluster topologies, Makefile targets, Definition of Done."
+phases: [all]
+topics: [testing, makefile, toolchain, local-clusters, dod]
+references: [02-instance-manager, 03-ha, 09-phases, ADR-016]
+changelog:
+  - {version: 0.4.0, date: 2026-10-19, change: "Add YAML metadata front matter"}
+  - {version: 0.3.0, date: 2026-10-16, change: "Specify DCO check in Phase 0 CI"}
+  - {version: 0.2.0, date: 2026-10-16, change: "Set project home to kinarix/pgkeeper"}
+  - {version: 0.1.0, date: 2026-10-16, change: "Add design specs and ADRs"}
+---
+
 # 08 — Testing Strategy, Local Clusters, and Makefile Contract
 
 ## 1. Prerequisites on a developer machine

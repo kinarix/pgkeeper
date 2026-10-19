@@ -1,3 +1,21 @@
+---
+id: 11-ha-scenarios
+title: "11 — HA Scenarios: What Happens When…"
+type: spec
+status: design
+version: 0.4.0
+updated: 2026-10-19
+summary: "Explanatory step-by-step HA fault and maintenance scenarios with timings, client impact and proving tests; 03 wins on conflict."
+phases: [P8, P9, P10, P10b, P11, P12, P13]
+topics: [ha, scenarios, failover, switchover, chaos]
+references: [03-ha, 04-backup-restore, 05-access-control, 06-observability-dashboard, ADR-015, ADR-016, ADR-017, ADR-018, ADR-019, ADR-020, ADR-021]
+changelog:
+  - {version: 0.4.0, date: 2026-10-19, change: "Add YAML metadata front matter"}
+  - {version: 0.3.0, date: 2026-10-16, change: "Use pgkeeper.in as the CRD API group"}
+  - {version: 0.2.0, date: 2026-10-16, change: "Resolve open spec review findings"}
+  - {version: 0.1.0, date: 2026-10-16, change: "Add design specs and ADRs"}
+---
+
 # 11 — HA Scenarios: What Happens When…
 
 Explanatory companion to **03-ha.md** and **ADR-016…021**. Those are normative; if this document disagrees with them, they win, and this document is the one to fix. Each scenario lists the setup, the step-by-step behaviour with timings, what clients see, the data-loss bound, and the test that proves it (`F#` = row in ADR-016's fault table).

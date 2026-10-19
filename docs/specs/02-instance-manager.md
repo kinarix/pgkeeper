@@ -1,3 +1,23 @@
+---
+id: 02-instance-manager
+title: "02 — Instance Manager (pgkeeper-instance)"
+type: spec
+status: design
+version: 0.6.0
+updated: 2026-10-19
+summary: "IM as PID 1: delivery, bootstrap, config render, supervision, probes (8001), mTLS API (8000), metrics, logging."
+phases: [P0, P2, P3, P4, P5, P6, P7, P8, P9, P10, P10b, P14, P18, P22, P23]
+topics: [instance-manager, bootstrap, probes, im-api, supervisor]
+references: [00-overview, 03-ha, 04-backup-restore, 05-access-control, 06-observability-dashboard, 10-glossary, ADR-006, ADR-010, ADR-018, ADR-019, ADR-021]
+changelog:
+  - {version: 0.6.0, date: 2026-10-19, change: "Add YAML metadata front matter"}
+  - {version: 0.5.0, date: 2026-10-16, change: "License under Apache-2.0; contributions via DCO"}
+  - {version: 0.4.0, date: 2026-10-16, change: "Use pgkeeper.in as the CRD API group"}
+  - {version: 0.3.0, date: 2026-10-16, change: "Set project home to kinarix/pgkeeper"}
+  - {version: 0.2.0, date: 2026-10-16, change: "Resolve open spec review findings"}
+  - {version: 0.1.0, date: 2026-10-16, change: "Add design specs and ADRs"}
+---
+
 # 02 — Instance Manager (`pgkeeper-instance`)
 
 The instance manager (IM) is a static Go binary that runs as **PID 1** in the Postgres container of every instance pod. It is the only thing that starts, stops, promotes or demotes Postgres.

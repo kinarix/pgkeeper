@@ -1,9 +1,22 @@
-# ADR-017 — Failover creates a PostgresPrimaryOverride; only a human deletes it
+---
+id: ADR-017
+title: "ADR-017 — Failover creates a PostgresPrimaryOverride; only a human deletes it"
+type: adr
+status: accepted
+decided: 2026-10-16
+amends: "ADR-007 (adds an operator-written override; pin and switchover stay as decided)"
+version: 0.2.0
+updated: 2026-10-19
+phases: [P9, P10, P12]
+topics: [failover, override, pinning]
+references: [00-overview, 01-api, 03-ha, 06-observability-dashboard, 11-ha-scenarios, ADR-007]
+related: "00-overview C5, 01 §1, §2, §12, 03 §5.4, §7, §8, 11 §5, §17"
+changelog:
+  - {version: 0.2.0, date: 2026-10-19, change: "Add YAML metadata front matter"}
+  - {version: 0.1.0, date: 2026-10-16, change: "Add design specs and ADRs"}
+---
 
-- Status: Accepted
-- Date: 2026-10-16
-- Amends: ADR-007 (adds an operator-written override; pin and switchover stay as decided)
-- Related: 00-overview C5, 01 §1, §2, §12, 03 §5.4, §7, §8, 11 §5, §17
+# ADR-017 — Failover creates a PostgresPrimaryOverride; only a human deletes it
 
 ## Context
 The operator decides who *should* be primary: the pin (`spec.primary.pin`), else the best candidate (03 §5.3). Under a `Preferred` pin, today's spec switches back to the pinned instance automatically after `switchbackDelay`. That has three problems:

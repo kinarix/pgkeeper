@@ -1,3 +1,20 @@
+---
+id: 04-backup-restore
+title: "04 — Backup, Retention, Restore and PITR"
+type: spec
+status: design
+version: 0.3.0
+updated: 2026-10-19
+summary: "Backup store layout, engine abstraction, WAL archiving, base/delta backups, retention, restore and PITR."
+phases: [P18, P19, P20, P21, P28]
+topics: [backup, wal-g, archiving, retention, pitr]
+references: [01-api, 02-instance-manager, ADR-006, ADR-012, ADR-020]
+changelog:
+  - {version: 0.3.0, date: 2026-10-19, change: "Add YAML metadata front matter"}
+  - {version: 0.2.0, date: 2026-10-16, change: "Resolve open spec review findings"}
+  - {version: 0.1.0, date: 2026-10-16, change: "Add design specs and ADRs"}
+---
+
 # 04 — Backup, Retention, Restore and PITR
 
 ## 1. Model in one paragraph

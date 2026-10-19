@@ -1,8 +1,21 @@
-# ADR-003 — Instance manager as PID 1 inside the official image
+---
+id: ADR-003
+title: "ADR-003 — Instance manager as PID 1 inside the official image"
+type: adr
+status: accepted
+decided: 2026-10-15
+version: 0.2.0
+updated: 2026-10-19
+phases: [P0, P2, P3]
+topics: [instance-manager, image-volume]
+references: [00-overview, 02-instance-manager]
+related: "00-overview C3, 02 §1–§2"
+changelog:
+  - {version: 0.2.0, date: 2026-10-19, change: "Add YAML metadata front matter"}
+  - {version: 0.1.0, date: 2026-10-16, change: "Add design specs and ADRs"}
+---
 
-- Status: Accepted
-- Date: 2026-10-15
-- Related: 00-overview C3, 02 §1–§2
+# ADR-003 — Instance manager as PID 1 inside the official image
 
 ## Context
 R5 requires unmodified official `postgres` images, which contain only PostgreSQL. HA, backup and log streaming need an agent and WAL-G.

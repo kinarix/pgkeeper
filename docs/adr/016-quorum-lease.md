@@ -1,9 +1,23 @@
-# ADR-016 — Quorum lease: the primary survives on the K8s Lease *or* its peers; promotion needs both
+---
+id: ADR-016
+title: "ADR-016 — Quorum lease: the primary survives on the K8s Lease *or* its peers; promotion needs both"
+type: adr
+status: accepted
+decided: 2026-10-16
+supersedes: "ADR-004"
+version: 0.3.0
+updated: 2026-10-19
+phases: [P8, P10, P10b]
+topics: [lease, quorum, fencing, failover]
+references: [03-ha, ADR-004, ADR-005, ADR-015]
+related: "03 §1, §3, §5, §10–§11; ADR-005 (unchanged); ADR-015 ledger rows C1, A8"
+changelog:
+  - {version: 0.3.0, date: 2026-10-19, change: "Add YAML metadata front matter"}
+  - {version: 0.2.0, date: 2026-10-16, change: "Use pgkeeper.in as the CRD API group"}
+  - {version: 0.1.0, date: 2026-10-16, change: "Add design specs and ADRs"}
+---
 
-- Status: Accepted
-- Date: 2026-10-16
-- Supersedes: ADR-004
-- Related: 03 §1, §3, §5, §10–§11; ADR-005 (unchanged); ADR-015 ledger rows C1, A8
+# ADR-016 — Quorum lease: the primary survives on the K8s Lease *or* its peers; promotion needs both
 
 ## Context
 ADR-004 made a single Kubernetes `Lease` the only split-brain guard. It is safe, but it ties every primary's availability to the API server: any API-server outage, including restarting a single-server k3d control plane, fences every primary in the fleet within `renewDeadline + fenceTimeout` (ADR-015 row C1).
