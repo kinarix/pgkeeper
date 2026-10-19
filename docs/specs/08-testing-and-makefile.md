@@ -3,13 +3,14 @@ id: 08-testing-and-makefile
 title: "08 — Testing Strategy, Local Clusters, Makefile Contract"
 type: spec
 status: design
-version: 0.4.0
+version: 0.5.0
 updated: 2026-10-19
 summary: "Prerequisites, pinned toolchain, test pyramid, local cluster topologies, Makefile targets, Definition of Done."
 phases: [all]
 topics: [testing, makefile, toolchain, local-clusters, dod]
 references: [02-instance-manager, 03-ha, 09-phases, ADR-016]
 changelog:
+  - {version: 0.5.0, date: 2026-10-19, change: "Pin verified Go toolchain versions for Phase 0 scaffold"}
   - {version: 0.4.0, date: 2026-10-19, change: "Add YAML metadata front matter"}
   - {version: 0.3.0, date: 2026-10-16, change: "Specify DCO check in Phase 0 CI"}
   - {version: 0.2.0, date: 2026-10-16, change: "Set project home to kinarix/pgkeeper"}
@@ -22,26 +23,26 @@ changelog:
 Only: `docker` (or compatible engine with ≥ 8 GB RAM / 4 CPU allotted), `go` (version from `go.mod`), `make`, `git`. **Everything else is installed by the Makefile into `./bin/`** with pinned versions. Linux and macOS, amd64 and arm64.
 
 ## 2. Pinned toolchain (verify & bump at Phase 0; record in Makefile variables)
-| Tool | Variable | Snapshot (2026-10) |
-|---|---|---|
-| Go | `go.mod` | 1.26.x |
-| controller-runtime | `go.mod` | v0.25.x |
-| controller-gen | `CONTROLLER_TOOLS_VERSION` | v0.22.x |
-| kubebuilder scaffold | — | v4.16 (scaffold once, then hand-maintained) |
-| setup-envtest / envtest K8s | `ENVTEST_K8S_VERSION` | 1.36.x |
-| golangci-lint | `GOLANGCI_LINT_VERSION` | v2.12+ |
-| kind | `KIND_VERSION` | v0.33.x (default node 1.37.0; 1.34–1.36 images available) |
-| k3d | `K3D_VERSION` | latest v5.x — verify |
-| k3s image | `K3S_IMAGE` | `rancher/k3s:v1.36.x-k3s1` — verify |
-| kubectl | `KUBECTL_VERSION` | matches newest node |
-| kustomize | `KUSTOMIZE_VERSION` | v5.x |
-| helm | `HELM_VERSION` | v3.x / v4 — verify |
-| chainsaw | `CHAINSAW_VERSION` | v0.2.15+ |
-| chaos-mesh | `CHAOS_MESH_VERSION` | verify |
-| WAL-G | `WALG_COMMIT` | pinned commit ≥ v3.0.8 incl. PG15+ base-backup protocol fix |
-| SeaweedFS | `SEAWEEDFS_IMAGE` | pinned digest |
-| fake-gcs-server, Azurite, atmoz/sftp, Dex | `*_IMAGE` | pinned digests |
-| Postgres images | `PG_IMAGES` | `postgres:16-trixie`, `postgres:17-trixie`, `postgres:18-trixie` (digest-pinned in CI) — verify Debian suite tags at phase start |
+| Tool | Variable | Snapshot (2026-10) | Pinned (verified 2026-10-19) |
+|---|---|---|---|
+| Go | `go.mod` | 1.26.x | go 1.26.0 (built with 1.26.4) |
+| controller-runtime | `go.mod` | v0.25.x | v0.25.2 |
+| controller-gen | `CONTROLLER_TOOLS_VERSION` | v0.22.x | v0.23.0 (k8s 0.37 deps, same as v0.22.x) |
+| kubebuilder scaffold | — | v4.16 (scaffold once, then hand-maintained) | v4.16.0 |
+| setup-envtest / envtest K8s | `ENVTEST_K8S_VERSION` | 1.36.x | 1.36.2 |
+| golangci-lint | `GOLANGCI_LINT_VERSION` | v2.12+ | v2.15.0 |
+| kind | `KIND_VERSION` | v0.33.x (default node 1.37.0; 1.34–1.36 images available) | |
+| k3d | `K3D_VERSION` | latest v5.x — verify | |
+| k3s image | `K3S_IMAGE` | `rancher/k3s:v1.36.x-k3s1` — verify | |
+| kubectl | `KUBECTL_VERSION` | matches newest node | |
+| kustomize | `KUSTOMIZE_VERSION` | v5.x | v5.8.3 |
+| helm | `HELM_VERSION` | v3.x / v4 — verify | |
+| chainsaw | `CHAINSAW_VERSION` | v0.2.15+ | |
+| chaos-mesh | `CHAOS_MESH_VERSION` | verify | |
+| WAL-G | `WALG_COMMIT` | pinned commit ≥ v3.0.8 incl. PG15+ base-backup protocol fix | |
+| SeaweedFS | `SEAWEEDFS_IMAGE` | pinned digest | |
+| fake-gcs-server, Azurite, atmoz/sftp, Dex | `*_IMAGE` | pinned digests | |
+| Postgres images | `PG_IMAGES` | `postgres:16-trixie`, `postgres:17-trixie`, `postgres:18-trixie` (digest-pinned in CI) — verify Debian suite tags at phase start | |
 
 ## 3. Test pyramid
 ### 3.1 Unit (`make test-unit`, < 60 s, no network)
