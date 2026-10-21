@@ -3,13 +3,14 @@ id: 09-phases
 title: "09 — Implementation Phases"
 type: spec
 status: design
-version: 0.6.0
-updated: 2026-10-19
+version: 0.7.0
+updated: 2026-10-21
 summary: "Phase status table and per-phase goal, scope and acceptance (the contract for current work)."
 phases: [all]
 topics: [phases, plan, acceptance]
 references: [02-instance-manager, 03-ha, 04-backup-restore, 05-access-control, 06-observability-dashboard, 08-testing-and-makefile, ADR-010, ADR-016, ADR-017, ADR-018, ADR-019, ADR-020, ADR-021, ADR-022]
 changelog:
+  - {version: 0.7.0, date: 2026-10-21, change: "Tick Phase 0; record deferred catalogue targets"}
   - {version: 0.6.0, date: 2026-10-19, change: "Add YAML metadata front matter"}
   - {version: 0.5.0, date: 2026-10-16, change: "Specify DCO check in Phase 0 CI"}
   - {version: 0.4.0, date: 2026-10-16, change: "Use pgkeeper.in as the CRD API group"}
@@ -28,7 +29,7 @@ Rules
 
 | Phase | Title | Status |
 |---|---|---|
-| 0 | Repo, toolchain, Makefile, local clusters | ☐ |
+| 0 | Repo, toolchain, Makefile, local clusters | ☑ |
 | 1 | API skeleton: PostgresCluster types + CEL | ☐ |
 | 2 | Instance manager v0 (outside K8s) | ☐ |
 | 3 | Single-instance cluster on K8s | ☐ |
@@ -64,6 +65,7 @@ Rules
 ## Phase 0 — Repo, toolchain, Makefile, local clusters
 **Goal:** a clean machine with docker+go+make can run `make dev` and get an empty operator running on kind and k3d.
 **Scope:** kubebuilder v4 scaffold (`--domain pgkeeper.in --repo github.com/kinarix/pgkeeper`, repo layout per CLAUDE.md), multi-binary layout (`cmd/operator`, `cmd/instance`, `cmd/dashboard`), Makefile with all **General/Development/Build/Local cluster/Deploy** targets (08 §5) — E2E targets as stubs that exit 0 with "not yet implemented"; `hack/kind`, `hack/k3d` configs with local registries; tools image Dockerfile (`FROM scratch`) containing a placeholder `pgkeeper-instance` with a working `install --to` subcommand (init-copy has no shell, 02 §2), the image-volume node-capability table (minimum kubelet + containerd/CRI-O versions) verified and pinned and WAL-G built from pinned commit (`make build-walg`); golangci-lint config incl. depguard; CI workflow running `dco verify lint test` (DCO check per 08 §5.3).
+**Deferred (decided at Phase 0 close):** these catalogue targets exist as stubs that exit 0 and move to the phase that first needs them: `samples` → P1; `chaos-up`/`chaos-down` → P8; `infra-up`/`infra-down` and `k3d-nfs` → P18 (Prometheus joins in P23, Dex in P24). Phase 0's acceptance never exercised them.
 **Out:** any CRD logic.
 **Acceptance (`accept-p0`):** `make doctor tools verify lint test`; `make cluster-up` twice (idempotent) for both providers; `make docker-build images-load deploy`; operator pod Ready; `wal-g --version` runs inside a `postgres:18` container with the tools image mounted as image volume (kind 1.36) **and** via init-copy (kind 1.34); `make cluster-down` twice; `make dco` passes on a signed-off branch and fails (listing the commit and the fix) on a branch with one unsigned commit, one commit signed off by someone other than the author, and passes when the only unsigned commit is a merge commit; the CI `dco` job runs on pull requests.
 

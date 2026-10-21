@@ -84,7 +84,7 @@ manifests: controller-gen ## controller-gen crd rbac → config/crd, config/rbac
 	"$(CONTROLLER_GEN)" rbac:roleName=manager-role crd paths="./..." output:crd:artifacts:config=config/crd/bases
 
 .PHONY: verify
-verify: generate manifests fmt ## generate+manifests+fmt then fail if git diff is non-empty
+verify: generate manifests fmt verify-frontmatter ## generate+manifests+fmt then fail if git diff is non-empty
 	@if [ -n "$$(git status --porcelain)" ]; then \
 		echo "verify: working tree differs after generate/manifests/fmt:"; \
 		git status --porcelain; git --no-pager diff --stat; \
@@ -97,6 +97,10 @@ DCO_BASE ?= origin/main
 .PHONY: dco
 dco: ## Check every commit in $(DCO_BASE)..HEAD has a DCO sign-off by its author
 	@hack/dco.sh "$(DCO_BASE)"
+
+.PHONY: verify-frontmatter
+verify-frontmatter: ## Check the YAML front matter of every tracked Markdown file
+	@go run ./hack/frontmatter $$(git ls-files '*.md')
 
 ##@ Test
 
@@ -243,8 +247,7 @@ undeploy: kustomize kubectl ## Remove the operator
 	"$(KUSTOMIZE)" build "$(DEPLOY_DIR)" | $(KUBECTL_CTX) delete --ignore-not-found -f -
 
 .PHONY: dev
-dev: cluster-up install docker-build images-load deploy-dev ## cluster-up + install + docker-build + images-load + deploy-dev
-	@# TODO(P3): infra-up and samples once there is something to run against them.
+dev: cluster-up infra-up install docker-build images-load deploy-dev samples ## cluster-up + infra-up + install + docker-build + images-load + deploy-dev + samples
 
 ##@ E2E
 
@@ -268,6 +271,17 @@ accept-p0: ## Acceptance suite for phase 0 (creates and deletes local clusters)
 # print-VAR prints a make variable, for scripts.
 print-%:
 	@echo '$($*)'
+
+# Deferred to the phase that first needs each (09-phases.md, Phase 0 scope).
+.PHONY: infra-up infra-down k3d-nfs chaos-up chaos-down samples
+infra-up: ## Deploy SeaweedFS, fake-gcs, Azurite, SFTP, Dex (+Prometheus) (stub, TODO(P18))
+infra-down: ## Remove test infrastructure (stub, TODO(P18))
+k3d-nfs: ## Install NFS provisioner (RWX) into k3d (stub, TODO(P18))
+chaos-up: ## Install Chaos Mesh (stub, TODO(P8))
+chaos-down: ## Remove Chaos Mesh (stub, TODO(P8))
+samples: ## Apply config/samples (stub, TODO(P1))
+infra-up infra-down k3d-nfs chaos-up chaos-down samples:
+	@echo "$@: not yet implemented"
 
 .PHONY: clean
 clean: ## Remove ./bin, _artifacts, build outputs

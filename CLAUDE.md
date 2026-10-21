@@ -3,13 +3,14 @@ id: claude-md
 title: "CLAUDE.md — agent instructions"
 type: agent-guide
 status: active
-version: 0.5.0
-updated: 2026-10-19
+version: 0.6.0
+updated: 2026-10-21
 summary: "Working rules, safety invariants short form, layout, conventions and which spec to read for each task."
 phases: [all]
 topics: [workflow, conventions, invariants]
 references: [00-overview, 01-api, 02-instance-manager, 03-ha, 04-backup-restore, 05-access-control, 06-observability-dashboard, 07-reconciliation-and-tenancy, 08-testing-and-makefile, 09-phases, 10-glossary, 11-ha-scenarios, ADR-016, ADR-017]
 changelog:
+  - {version: 0.6.0, date: 2026-10-21, change: "Front matter now checked by make verify"}
   - {version: 0.5.0, date: 2026-10-19, change: "Add YAML metadata front matter"}
   - {version: 0.4.0, date: 2026-10-16, change: "License under Apache-2.0; contributions via DCO"}
   - {version: 0.3.0, date: 2026-10-16, change: "Use pgkeeper.in as the CRD API group"}
@@ -53,7 +54,7 @@ Load only what the task needs. Scan front matter first, then read the body of a 
 6. **Verify external facts** (tool versions, WAL-G flags, Postgres GUC names/values per major) against upstream docs at the start of the phase that needs them; pin what you verified in the Makefile/go.mod and note it in the PR.
 7. Ask before: adding a new dependency with cgo, adding a new CRD or CRD field not in 01-api.md, changing generated object names (01 §1.4), changing default timings in `ha`.
 
-8. **Keep Markdown front matter current.** Every `.md` file starts with a YAML block (`---` on line 1) in this field order: `id, title, type, status, [superseded_by, status_note, decided, supersedes, amends, amended_by], version, updated, summary, phases, topics, references, [related], changelog`. `phases`/`topics`/`references` are one-line flow lists; `references` holds ids (`03-ha`, `ADR-016`) of docs the body cites. Every edit bumps `version` (minor; patch for typos), sets `updated`, and prepends `{version, date, change}` to `changelog`. ADRs keep status/date/related here, not as body bullets. Not applied to LICENSE, NOTICE, `.gitignore` or source files (SPDX header stays first). TODO(P0): check in `make verify`.
+8. **Keep Markdown front matter current.** Every `.md` file starts with a YAML block (`---` on line 1) in this field order: `id, title, type, status, [superseded_by, status_note, decided, supersedes, amends, amended_by], version, updated, summary, phases, topics, references, [related], changelog`. `phases`/`topics`/`references` are one-line flow lists; `references` holds ids (`03-ha`, `ADR-016`) of docs the body cites. Every edit bumps `version` (minor; patch for typos), sets `updated`, and prepends `{version, date, change}` to `changelog`. ADRs keep status/date/related here, not as body bullets. Not applied to LICENSE, NOTICE, `.gitignore` or source files (SPDX header stays first). `make verify` (`verify-frontmatter`) checks structure, key order, version/changelog/updated consistency and that references resolve; it cannot tell whether you bumped the version, so that part is on you.
 
 ## Safety invariants (short form — full table in 03 §1)
 - At most one writable primary: Postgres runs read-write only while its IM holds a **sustain quorum** of the quorum lease — the `<cluster>-primary` Lease **or** enough peer votes (03 §3, ADR-016); on doubt the IM fences with **immediate** stop.
